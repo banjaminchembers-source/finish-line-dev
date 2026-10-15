@@ -78,7 +78,7 @@ function loadConversations(): ConversationStore {
           });
         if (threads.length) {
           const requestedId = localStorage.getItem(CURRENT_THREAD_KEY);
-          return { threads, currentId: threads.some((thread) => thread.id === requestedId) ? requestedId! : threads[0].id };
+          return { threads, currentId: threads.some((thread) => thread.id === requestedId) ? requestedId! : threads[0]!.id };
         }
       }
     }
