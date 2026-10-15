@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       GET: async () => {
-        const configured = Boolean(process.env.LOVABLE_API_KEY);
+        const configured = Boolean(process.env['LOVABLE_API_KEY']);
         return Response.json({
           configured,
           provider: configured ? "Lovable AI" : null,
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/api/chat")({
       POST: async ({ request }) => {
         const parsed = Body.safeParse(await request.json().catch(() => null));
         if (!parsed.success) return Response.json({ error: "Сообщение пустое или имеет неверный формат." }, { status: 400 });
-        const key = process.env.LOVABLE_API_KEY;
+        const key = process.env['LOVABLE_API_KEY'];
         if (!key) return Response.json({ error: "ИИ не настроен." }, { status: 503 });
 
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
