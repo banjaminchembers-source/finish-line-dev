@@ -134,7 +134,7 @@ export function BrainApp() {
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<RecognitionInstance | null>(null);
   const recognitionBaseRef = useRef('');
-  const currentThread = conversationState.threads.find((thread) => thread.id === conversationState.currentId) ?? conversationState.threads[0];
+  const currentThread = conversationState.threads.find((thread) => thread.id === conversationState.currentId) ?? conversationState.threads[0]!;
   const currentThreadId = currentThread.id;
   const messages = currentThread.messages;
   const statusQuery = useChatStatus();
@@ -226,7 +226,7 @@ export function BrainApp() {
       recognition.continuous = false;
       recognition.onresult = (event) => {
         let spoken = '';
-        for (let i = 0; i < event.results.length; i += 1) spoken += event.results[i][0].transcript;
+        for (let i = 0; i < event.results.length; i += 1) spoken += (event.results[i]?.[0].transcript ?? "");
         if (spoken) setDraft(`${recognitionBaseRef.current}${recognitionBaseRef.current ? ' ' : ''}${spoken}`.trim());
       };
       recognition.onerror = (event) => {
