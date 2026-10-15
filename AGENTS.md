@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+# AGENTS
+- BRAIN chat UI lives in src/components/BrainApp.tsx, rendered client-only (localStorage state).
+- AI replies go through src/routes/api/chat.ts (Lovable AI Gateway, streamed); key stays server-side.
