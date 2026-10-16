@@ -11,3 +11,4 @@
 # AGENTS
 - BRAIN chat UI lives in src/components/BrainApp.tsx, rendered client-only (localStorage state).
 - AI replies go through src/routes/api/chat.ts (Lovable AI Gateway, streamed); key stays server-side.
+- Signed-in users' conversations sync to the `conversations` table via src/lib/cloud-sync.ts (browser client + RLS); localStorage remains the offline cache.
