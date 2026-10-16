@@ -4,6 +4,7 @@ import {
   Plus, RotateCw, Send, Settings2, Sparkles, Square, Trash2, Volume2, X,
 } from 'lucide-react';
 import { useChatStatus, useSendChatMessage } from '@/lib/chat-client';
+import { pickRussianVoice, planPhrases } from '@/lib/speech';
 import { signInWithGoogle, signOut, useAuthUser, useCloudSync } from '@/lib/cloud-sync';
 
 type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
@@ -172,11 +173,7 @@ export function BrainApp() {
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) { setVoiceAvailable(false); return; }
-    const chooseVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      setPreferredVoice(voices.find((voice) => voice.lang.toLowerCase() === 'ru-ru')
-        ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('ru')) ?? null);
-    };
+    const chooseVoice = () => setPreferredVoice(pickRussianVoice(window.speechSynthesis.getVoices()));
     chooseVoice();
     window.speechSynthesis.addEventListener('voiceschanged', chooseVoice);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', chooseVoice);
@@ -193,6 +190,7 @@ export function BrainApp() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const speechRunRef = useRef(0);
   const speak = useCallback((text: string) => {
     if (!('speechSynthesis' in window)) {
       setSpeechError('Озвучивание не поддерживается этим браузером.');
@@ -200,18 +198,29 @@ export function BrainApp() {
       return;
     }
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ru-RU';
-    utterance.rate = preferences.voiceRate;
-    if (preferredVoice) utterance.voice = preferredVoice;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+    const run = ++speechRunRef.current;
+    const phrases = planPhrases(text, preferences.voiceRate);
+    if (!phrases.length) return;
     setSpeechError('');
+    setSpeaking(true);
+    const sayNext = (i: number) => {
+      if (run !== speechRunRef.current) return;
+      const phrase = phrases[i];
+      if (!phrase) { setSpeaking(false); return; }
+      const utterance = new SpeechSynthesisUtterance(phrase.text);
+      utterance.lang = preferredVoice?.lang ?? 'ru-RU';
+      utterance.rate = phrase.rate;
+      utterance.pitch = phrase.pitch;
+      if (preferredVoice) utterance.voice = preferredVoice;
+      utterance.onend = () => { if (run === speechRunRef.current) setTimeout(() => sayNext(i + 1), phrase.pauseAfter); };
+      utterance.onerror = (e) => { if (run === speechRunRef.current && e.error !== 'interrupted' && e.error !== 'canceled') setSpeaking(false); };
+      window.speechSynthesis.speak(utterance);
+    };
+    sayNext(0);
   }, [preferences.voiceRate, preferredVoice]);
 
   const stopSpeaking = () => {
+    speechRunRef.current++;
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setSpeaking(false);
   };
