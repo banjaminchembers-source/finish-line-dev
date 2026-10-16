@@ -4,7 +4,7 @@ import {
   Plus, RotateCw, Send, Settings2, Sparkles, Square, Trash2, Volume2, X,
 } from 'lucide-react';
 import { useChatStatus, useSendChatMessage } from '@/lib/chat-client';
-import { pickRussianVoice, planPhrases, voiceGender } from '@/lib/speech';
+import { cleanForSpeech, pickRussianVoice, planPhrases, voiceGender } from '@/lib/speech';
 import { signInWithGoogle, signOut, useAuthUser, useCloudSync } from '@/lib/cloud-sync';
 
 type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
@@ -191,18 +191,17 @@ export function BrainApp() {
   }, []);
 
   const speechRunRef = useRef(0);
-  const speak = useCallback((text: string) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speakWithDevice = useCallback((text: string, run: number) => {
     if (!('speechSynthesis' in window)) {
       setSpeechError('Озвучивание не поддерживается этим браузером.');
       setVoiceAvailable(false);
+      setSpeaking(false);
       return;
     }
     window.speechSynthesis.cancel();
-    const run = ++speechRunRef.current;
     const phrases = planPhrases(text, preferences.voiceRate);
-    if (!phrases.length) return;
-    setSpeechError('');
-    setSpeaking(true);
+    if (!phrases.length) { setSpeaking(false); return; }
     const sayNext = (i: number) => {
       if (run !== speechRunRef.current) return;
       const phrase = phrases[i];
@@ -219,8 +218,39 @@ export function BrainApp() {
     sayNext(0);
   }, [preferences.voiceRate, preferredVoice]);
 
+  const speak = useCallback(async (text: string) => {
+    const run = ++speechRunRef.current;
+    audioRef.current?.pause();
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    const clean = cleanForSpeech(text).slice(0, 4500);
+    if (!clean) return;
+    setSpeechError('');
+    setSpeaking(true);
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean, speed: preferences.voiceRate }),
+      });
+      if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? `Ошибка ${res.status}`);
+      const blob = await res.blob();
+      if (run !== speechRunRef.current) return;
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); if (run === speechRunRef.current) setSpeaking(false); };
+      await audio.play();
+    } catch (error) {
+      if (run !== speechRunRef.current) return;
+      console.warn('George voice unavailable, using device voice', error);
+      setSpeechError('Голос George сейчас недоступен — говорю голосом устройства.');
+      speakWithDevice(text, run);
+    }
+  }, [preferences.voiceRate, speakWithDevice]);
+
   const stopSpeaking = () => {
     speechRunRef.current++;
+    audioRef.current?.pause();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setSpeaking(false);
   };
