@@ -4,6 +4,7 @@ import {
   Plus, RotateCw, Send, Settings2, Sparkles, Square, Trash2, Volume2, X,
 } from 'lucide-react';
 import { useChatStatus, useSendChatMessage } from '@/lib/chat-client';
+import { pickRussianVoice, planPhrases } from '@/lib/speech';
 import { signInWithGoogle, signOut, useAuthUser, useCloudSync } from '@/lib/cloud-sync';
 
 type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
