@@ -70,10 +70,10 @@ const MALE_NAMES = [
 
 /** Voice names that usually mean the speaker is female. */
 const FEMALE_NAMES = [
-  'milena', 'svetlana', 'svetlana', 'tatyana', 'tatiana', 'irina', 'katya', 'katusha', 'alena',
+  'milena', 'svetlana', 'tatyana', 'tatiana', 'irina', 'katya', 'katusha', 'alena',
   'marina', 'polina', 'elena', 'olga', 'natalia', 'natalya', 'daria', 'darya', 'anastasia',
   'ekaterina', 'alsu', 'kristina', 'jana', 'vera', 'amira', 'milana', 'sofya', 'maria', 'masha',
-  'tatyana', 'zhensky', 'женский', 'female',
+  'zhensky', 'женский', 'female',
 ];
 
 /** Best guess about the speaker's gender: browser hint first, then the voice name. */
