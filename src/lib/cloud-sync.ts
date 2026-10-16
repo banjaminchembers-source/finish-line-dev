@@ -13,7 +13,8 @@ export function useAuthUser() {
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, session) => { setUser(session?.user ?? null); setReady(true); });
     void supabase.auth.getSession().then(({ data: d }) => { setUser(d.session?.user ?? null); setReady(true); });
-    return () => data.subscription.unsubscribe();
+    const fallback = setTimeout(() => setReady(true), 1500);
+    return () => { clearTimeout(fallback); data.subscription.unsubscribe(); };
   }, []);
   return { user, ready };
 }
