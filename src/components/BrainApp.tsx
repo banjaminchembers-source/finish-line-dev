@@ -350,6 +350,13 @@ export function BrainApp() {
               <span className={`status-dot ${statusQuery.isLoading ? 'waiting' : status?.configured ? 'ready' : ''}`} />
               <span>{statusQuery.isLoading ? 'Проверяем подключение' : statusQuery.isError ? 'Нет связи с сервером' : status?.configured ? 'ИИ на связи' : 'ИИ не настроен'}</span>
             </div>
+            {authReady && (user
+              ? <button className="soft-button" onClick={() => void signOut()} data-testid="button-sign-out" title={user.email ?? ''} aria-label="Выйти из аккаунта">
+                  <span>{syncState === 'loading' ? 'Загружаем историю…' : syncState === 'error' ? 'Ошибка сохранения' : 'История в аккаунте'} · Выйти</span>
+                </button>
+              : <button className="soft-button" onClick={() => void handleSignIn()} data-testid="button-sign-in" aria-label="Войти через Google">
+                  <span>Войти через Google</span>
+                </button>)}
             <button className="soft-button" onClick={newConversation} data-testid="button-new-conversation" aria-label="Начать новый разговор">
               <Plus size={16} /> <span>Новый разговор</span>
             </button>
@@ -378,6 +385,8 @@ export function BrainApp() {
             ИИ пока не подключён. Настройте провайдера, чтобы получать ответы; ваши разговоры сохраняются только в этом браузере.
           </div>}
 
+          {authError && <div className="error-card" role="status">{authError}</div>}
+          {authReady && !user && messages.length === 0 && <div className="local-note" data-testid="status-local-only">Сейчас разговоры хранятся только на этом устройстве. Войдите через Google, чтобы они были доступны везде.</div>}
           {messages.length === 0 ? (
             <section className="welcome" aria-labelledby="welcome-heading">
               <div className="eyebrow"><Sparkles size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Ваше пространство для идей</div>
