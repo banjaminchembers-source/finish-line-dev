@@ -1,0 +1,2 @@
+- [x] Voice ask / listen buttons on home screen
+- [x] Google sign-in + conversation history saved in account

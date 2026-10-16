@@ -4,6 +4,7 @@ import {
   Plus, RotateCw, Send, Settings2, Sparkles, Square, Trash2, Volume2, X,
 } from 'lucide-react';
 import { useChatStatus, useSendChatMessage } from '@/lib/chat-client';
+import { signInWithGoogle, signOut, useAuthUser, useCloudSync } from '@/lib/cloud-sync';
 
 type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
 type ChatEntry = { id: string; role: ChatRole; content: string; time: number; localOnly?: boolean };
@@ -140,6 +141,10 @@ export function BrainApp() {
   const statusQuery = useChatStatus();
   const sendMessage = useSendChatMessage();
   const status = statusQuery.data;
+  const { user, ready: authReady } = useAuthUser();
+  const syncState = useCloudSync(user?.id ?? null, conversationState, setConversationState);
+  const [authError, setAuthError] = useState('');
+  const handleSignIn = async () => { setAuthError(''); const err = await signInWithGoogle(); if (err) setAuthError(err); };
 
   const updateMessages = (threadId: string, update: (entries: ChatEntry[]) => ChatEntry[]) => {
     setConversationState((current) => ({
