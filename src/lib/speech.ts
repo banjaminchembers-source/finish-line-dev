@@ -62,10 +62,10 @@ export type VoiceGender = 'male' | 'female' | 'unknown';
 
 /** Voice names that usually mean the speaker is male. */
 const MALE_NAMES = [
-  'dmitry', 'dmitri', 'dmitrij', 'dmitry', 'yuri', 'yury', 'artemiy', 'artiy', 'maxim', 'maksim',
+  'dmitry', 'dmitri', 'dmitrij', 'dmitriy', 'yuri', 'yury', 'artemiy', 'artiy', 'maxim', 'maksim',
   'ruslan', 'pavel', 'nikolai', 'nikolas', 'igor', 'oleg', 'sergey', 'sergei', 'konstantin',
-  'vladimir', 'aleksey', 'alexey', 'roman', 'fedor', 'gleb', 'matvey', 'timur', 'marat', 'malevich',
-  'dmitriy', 'bogdan', 'grozov', 'rustam', 'mале', 'мужской', 'male',
+  'vladimir', 'aleksey', 'alexey', 'roman', 'fedor', 'gleb', 'matvey', 'timur', 'marat', 'bogdan',
+  'grozov', 'rustam', 'malevich', 'мужской', 'male',
 ];
 
 /** Voice names that usually mean the speaker is female. */
