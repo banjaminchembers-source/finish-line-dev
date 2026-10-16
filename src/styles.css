@@ -233,3 +233,14 @@
   .settings-sheet { padding:20px; border-radius:22px; }
 }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } }
+
+.voice-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 22px; }
+.voice-action { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); text-align: left; cursor: pointer; transition: border-color .2s, transform .2s; }
+.voice-action:hover { transform: translateY(-1px); border-color: var(--primary); }
+.voice-action strong { display: block; font-size: 15px; }
+.voice-action small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted-foreground); }
+.voice-action-icon { display: grid; place-items: center; width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; background: var(--muted); color: var(--primary); }
+.voice-action.primary .voice-action-icon, .voice-action.active .voice-action-icon { background: var(--primary); color: var(--primary-foreground); }
+.voice-action.active { border-color: var(--primary); }
+.voice-action.primary.active .voice-action-icon { animation: voice-pulse 1.4s ease-in-out infinite; }
+@keyframes voice-pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent); } 50% { box-shadow: 0 0 0 10px transparent; } }

@@ -378,6 +378,16 @@ export function BrainApp() {
               <div className="eyebrow"><Sparkles size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Ваше пространство для идей</div>
               <h1 id="welcome-heading">С чего начнём?</h1>
               <p>Задайте вопрос, продумайте идею или попросите помочь с задачей. Я здесь, чтобы разложить сложное по полочкам.</p>
+              <div className="voice-actions">
+                <button type="button" className={`voice-action primary ${listening ? 'active' : ''}`} onClick={toggleListening} aria-pressed={listening} data-testid="button-welcome-voice">
+                  <span className="voice-action-icon">{listening ? <MicOff size={22} /> : <Mic size={22} />}</span>
+                  <span><strong>{listening ? 'Слушаю… нажмите, чтобы закончить' : 'Спросить голосом'}</strong><small>Говорите — я запишу вопрос</small></span>
+                </button>
+                <button type="button" className={`voice-action ${preferences.autoSpeak ? 'active' : ''}`} onClick={() => updatePreference({ autoSpeak: !preferences.autoSpeak })} aria-pressed={preferences.autoSpeak} data-testid="button-welcome-autospeak">
+                  <span className="voice-action-icon"><Volume2 size={22} /></span>
+                  <span><strong>{preferences.autoSpeak ? 'Ответы звучат вслух' : 'Слушать ответы'}</strong><small>{preferences.autoSpeak ? 'Нажмите, чтобы выключить' : 'BRAIN будет читать ответы'}</small></span>
+                </button>
+              </div>
             </section>
           ) : (
             <section className="conversation" ref={transcriptRef} aria-label="История разговора" data-testid="conversation-history">
