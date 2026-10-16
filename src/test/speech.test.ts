@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { cleanForSpeech, planPhrases } from '@/lib/speech';
+import { cleanForSpeech, planPhrases, pickRussianVoice, voiceGender } from '@/lib/speech';
+
+const voice = (name: string, lang = 'ru-RU') => ({ name, lang }) as unknown as SpeechSynthesisVoice;
 
 describe('speech', () => {
   it('does not read markdown symbols aloud', () => {

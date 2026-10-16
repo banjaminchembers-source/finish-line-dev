@@ -58,12 +58,44 @@ export function planPhrases(input: string, baseRate = 1): Phrase[] {
 
 function clamp(v: number, min: number, max: number) { return Math.round(Math.min(max, Math.max(min, v)) * 100) / 100; }
 
-/** Picks the most natural-sounding Russian voice the device offers. */
+export type VoiceGender = 'male' | 'female' | 'unknown';
+
+/** Voice names that usually mean the speaker is male. */
+const MALE_NAMES = [
+  'dmitry', 'dmitri', 'dmitrij', 'dmitry', 'yuri', 'yury', 'artemiy', 'artiy', 'maxim', 'maksim',
+  'ruslan', 'pavel', 'nikolai', 'nikolas', 'igor', 'oleg', 'sergey', 'sergei', 'konstantin',
+  'vladimir', 'aleksey', 'alexey', 'roman', 'fedor', 'gleb', 'matvey', 'timur', 'marat', 'malevich',
+  'dmitriy', 'bogdan', 'grozov', 'rustam', 'mале', 'мужской', 'male',
+];
+
+/** Voice names that usually mean the speaker is female. */
+const FEMALE_NAMES = [
+  'milena', 'svetlana', 'svetlana', 'tatyana', 'tatiana', 'irina', 'katya', 'katusha', 'alena',
+  'marina', 'polina', 'elena', 'olga', 'natalia', 'natalya', 'daria', 'darya', 'anastasia',
+  'ekaterina', 'alsu', 'kristina', 'jana', 'vera', 'amira', 'milana', 'sofya', 'maria', 'masha',
+  'tatyana', 'zhensky', 'женский', 'female',
+];
+
+/** Best guess about the speaker's gender: browser hint first, then the voice name. */
+export function voiceGender(voice: SpeechSynthesisVoice): VoiceGender {
+  const hint = (voice as SpeechSynthesisVoice & { gender?: string }).gender;
+  if (typeof hint === 'string') {
+    if (/female|женск/i.test(hint)) return 'female';
+    if (/^male$|мужск/i.test(hint)) return 'male';
+  }
+  const name = voice.name.toLowerCase();
+  if (FEMALE_NAMES.some((n) => name.includes(n))) return 'female';
+  if (MALE_NAMES.some((n) => name.includes(n))) return 'male';
+  return 'unknown';
+}
+
+/** Picks a male Russian voice, preferring the most natural-sounding one available. */
 export function pickRussianVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const ru = voices.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('ru'));
   if (!ru.length) return null;
   const score = (v: SpeechSynthesisVoice) =>
-    (/natural|neural|online/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 3 : 0) +
-    (/milena|dmitry|svetlana|yuri/i.test(v.name) ? 2 : 0) + (v.lang.toLowerCase() === 'ru-ru' ? 1 : 0);
+    (voiceGender(v) === 'male' ? 12 : voiceGender(v) === 'female' ? -12 : 0) +
+    (/natural|neural|online|premium|enhanced/i.test(v.name) ? 4 : 0) +
+    (/google/i.test(v.name) ? 3 : 0) + (v.lang.toLowerCase() === 'ru-ru' ? 1 : 0);
   return [...ru].sort((a, b) => score(b) - score(a))[0]!;
 }
