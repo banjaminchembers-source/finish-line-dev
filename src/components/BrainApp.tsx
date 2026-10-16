@@ -230,7 +230,7 @@ export function BrainApp() {
     const browser = window as SpeechWindow;
     const Recognition = browser.SpeechRecognition ?? browser.webkitSpeechRecognition;
     if (!Recognition) {
-      setSpeechError('Голосовой ввод не поддерживается. Попробуйте открыть BRAIN в актуальном браузере.');
+      setSpeechError('Голосовой ввод не поддерживается. Попробуйте открыть Dima в актуальном браузере.');
       return;
     }
     try {
@@ -350,9 +350,9 @@ export function BrainApp() {
     <div className="app-shell">
       <div className="layout">
         <header className="topbar">
-          <div className="brand" aria-label="BRAIN — личный ИИ-ассистент">
+          <div className="brand" aria-label="Dima — личный ИИ-ассистент">
             <div className="brand-mark"><AudioLines size={19} strokeWidth={1.8} /></div>
-            <div><div className="brand-name">BRAIN</div><div className="brand-caption">Личное пространство</div></div>
+            <div><div className="brand-name">Dima</div><div className="brand-caption">Личное пространство</div></div>
           </div>
           <div className="top-actions">
             <div className="statusline header-status" data-testid="status-ai-connection">
@@ -408,7 +408,7 @@ export function BrainApp() {
                 </button>
                 <button type="button" className={`voice-action ${preferences.autoSpeak ? 'active' : ''}`} onClick={() => updatePreference({ autoSpeak: !preferences.autoSpeak })} aria-pressed={preferences.autoSpeak} data-testid="button-welcome-autospeak">
                   <span className="voice-action-icon"><Volume2 size={22} /></span>
-                  <span><strong>{preferences.autoSpeak ? 'Ответы звучат вслух' : 'Слушать ответы'}</strong><small>{preferences.autoSpeak ? 'Нажмите, чтобы выключить' : 'BRAIN будет читать ответы'}</small></span>
+                  <span><strong>{preferences.autoSpeak ? 'Ответы звучат вслух' : 'Слушать ответы'}</strong><small>{preferences.autoSpeak ? 'Нажмите, чтобы выключить' : 'Dima будет читать ответы'}</small></span>
                 </button>
               </div>
             </section>
@@ -418,7 +418,7 @@ export function BrainApp() {
                 <article key={entry.id} className={`message ${entry.role}`} data-testid={`message-${entry.role}-${entry.id}`}>
                   <div className="avatar" aria-hidden="true">{entry.role === 'user' ? <span style={{ fontSize: 11, fontWeight: 700 }}>Вы</span> : entry.role === 'notice' ? <CircleHelp size={16} /> : entry.role === 'error' ? <CircleHelp size={16} /> : <Bot size={17} />}</div>
                   <div className="message-body">
-                    <div className="message-meta">{entry.role === 'user' ? 'Вы' : entry.role === 'notice' ? 'Возможности браузера' : entry.role === 'error' ? 'Не удалось выполнить' : 'BRAIN'} · {formatTime(entry.time)}</div>
+                    <div className="message-meta">{entry.role === 'user' ? 'Вы' : entry.role === 'notice' ? 'Возможности браузера' : entry.role === 'error' ? 'Не удалось выполнить' : 'Dima'} · {formatTime(entry.time)}</div>
                     <div className="bubble" data-testid={`text-message-content-${entry.id}`}>{entry.content}</div>
                     {entry.role === 'assistant' && <button className="message-speak" onClick={() => speak(entry.content)} data-testid={`button-speak-message-${entry.id}`} aria-label="Озвучить этот ответ">
                       <Volume2 size={13} /> Озвучить ответ
@@ -426,7 +426,7 @@ export function BrainApp() {
                   </div>
                 </article>
               ))}
-              {sendMessage.isPending && <div className="message" data-testid="status-thinking"><div className="avatar"><Bot size={17} /></div><div className="message-body"><div className="message-meta">BRAIN думает</div><div className="thinking" aria-label="Формируем ответ"><i /><i /><i /></div></div></div>}
+              {sendMessage.isPending && <div className="message" data-testid="status-thinking"><div className="avatar"><Bot size={17} /></div><div className="message-body"><div className="message-meta">Dima думает</div><div className="thinking" aria-label="Формируем ответ"><i /><i /><i /></div></div></div>}
               {requestError && <div className="error-card" data-testid="status-send-error">{requestError}
                 {status?.configured && <><br /><button onClick={() => {
                   const lastUser = [...messages].reverse().find((entry) => entry.role === 'user' && !entry.localOnly);
@@ -455,7 +455,7 @@ export function BrainApp() {
 
           <div className="composer-wrap">
             {speechError && <div className="local-note" role="status" data-testid="status-speech-error">{speechError}</div>}
-            {speaking && <div className="local-note" data-testid="status-speaking">BRAIN говорит · <button className="voice-stop" onClick={stopSpeaking} data-testid="button-stop-speaking"><Square size={11} fill="currentColor" style={{ verticalAlign: '-1px' }} /> Остановить</button></div>}
+            {speaking && <div className="local-note" data-testid="status-speaking">Dima говорит · <button className="voice-stop" onClick={stopSpeaking} data-testid="button-stop-speaking"><Square size={11} fill="currentColor" style={{ verticalAlign: '-1px' }} /> Остановить</button></div>}
             <form className="composer" onSubmit={(event) => { event.preventDefault(); void submitMessage(); }}>
               <textarea
                 value={draft}
