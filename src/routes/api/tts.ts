@@ -1,15 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-// ElevenLabs Adam is the intended Dima voice. Allow deployment-specific override.
-const VOICE_ID = process.env["ELEVENLABS_VOICE_ID"] || "pNInz6obpgDQGcFmaJgB"; // Adam
+// Keep voice selection server-side; never accept arbitrary voice IDs from the client.
+const VOICE_IDS = {
+  male: process.env["ELEVENLABS_VOICE_ID"] || "pNInz6obpgDQGcFmaJgB", // Adam
+  female: process.env["ELEVENLABS_FEMALE_VOICE_ID"] || "EXAVITQu4vr4xnSDxMaL", // Bella
+} as const;
 
 type RuntimeContext = { env?: { ELEVENLABS_API_KEY?: string } };
 function getElevenLabsApiKey(context: unknown): string | undefined {
   const runtime = context as RuntimeContext | undefined;
   return runtime?.env?.ELEVENLABS_API_KEY ?? process.env["ELEVENLABS_API_KEY"];
 }
-const Body = z.object({ text: z.string().min(1).max(4500), speed: z.number().min(0.5).max(2).optional() });
+const Body = z.object({ text: z.string().min(1).max(4500), speed: z.number().min(0.5).max(2).optional(), voice: z.enum(["male", "female"]).optional() });
 
 export const Route = createFileRoute("/api/tts")({
   server: {
@@ -20,8 +23,9 @@ export const Route = createFileRoute("/api/tts")({
         const key = getElevenLabsApiKey(context);
         if (!key) return Response.json({ error: "ElevenLabs не подключён." }, { status: 503 });
         const speed = Math.min(1.2, Math.max(0.7, parsed.data.speed ?? 1));
+        const voiceId = VOICE_IDS[parsed.data.voice ?? "male"];
         const res = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`,
+          `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
           {
             method: "POST",
             headers: { "xi-api-key": key, "Content-Type": "application/json" },
