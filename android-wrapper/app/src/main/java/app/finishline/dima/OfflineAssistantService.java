@@ -252,6 +252,11 @@ public class OfflineAssistantService extends Service implements RecognitionListe
         } catch(Exception e){speaking=false;update(text);}
     }
 
+    private void launch(Intent intent,String error) {
+        try { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(intent); }
+        catch(Exception e) { update(error); }
+    }
+
     private Notification notification(String text) {
         Intent open=new Intent(this,MainActivity.class);
         PendingIntent content=PendingIntent.getActivity(this,4408,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
