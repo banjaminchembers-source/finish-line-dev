@@ -385,11 +385,15 @@ export function BrainApp() {
         voiceBusyRef.current = false;
       }
     } catch (error) {
-      const apiError = error as { message?: string; data?: { error?: string }; response?: { data?: { error?: string } } };
+      const apiError = error as { message?: string; data?: { error?: string; code?: string }; response?: { data?: { error?: string } } };
       const serverText = apiError.data?.error ?? apiError.response?.data?.error;
-      const message = typeof serverText === 'string' && /not configured|не настроен|configuration/i.test(serverText)
-        ? 'Подключение к ИИ не настроено. Обратитесь к администратору, чтобы настроить провайдера.'
-        : 'Не удалось получить ответ от ИИ. Проверьте подключение и повторите попытку.';
+      // Show the real server/API error instead of replacing every failure with a generic message.
+      const message = typeof serverText === 'string' && serverText.trim()
+        ? serverText
+        : apiError.message && apiError.message !== 'request failed'
+          ? `Не удалось получить ответ от ИИ: ${apiError.message}`
+          : 'Не удалось связаться с сервером Dima. Проверьте интернет и попробуйте ещё раз.';
+      console.error('[Dima chat] request failed:', { message, code: apiError.data?.code });
       setRequestError(message);
       if (voiceModeRef.current) resumeVoiceListening();
     }
@@ -523,7 +527,10 @@ export function BrainApp() {
                       if (!answer?.trim()) { setRequestError('Сервис не вернул ответ. Попробуйте отправить сообщение ещё раз.'); return; }
                       updateMessages(currentThreadId, (current) => [...current, makeEntry('assistant', answer)]);
                       if (preferences.autoSpeak) speak(answer);
-                    }).catch(() => setRequestError('Не удалось получить ответ от ИИ. Проверьте подключение и повторите попытку.'));
+                    }).catch((error: unknown) => {
+                      const apiError = error as { message?: string; data?: { error?: string } };
+                      setRequestError(apiError.data?.error ?? apiError.message ?? 'Не удалось связаться с сервером Dima.');
+                    });
                   }
                 }} data-testid="button-retry-message"><RotateCw size={13} /> Повторить отправку</button></>}
               </div>}
@@ -637,4 +644,3 @@ export function BrainApp() {
     </div>
   );
 }
-
