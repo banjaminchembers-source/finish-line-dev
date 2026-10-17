@@ -35,8 +35,22 @@ public class MainActivity extends Activity {
     private WebView webView;
     private PermissionRequest pendingPermissionRequest;
     private JSONObject pendingNativeCommand;
+    private String pendingOfflineLanguage = "ru";
+    private static final int REQUEST_OFFLINE_PERMISSIONS = 2005;
 
     private final class DimaBridge {
+        @JavascriptInterface
+        public void startOfflineAssistant(String language) {
+            runOnUiThread(() -> requestOfflineAssistant(language));
+        }
+        @JavascriptInterface
+        public void stopOfflineAssistant() {
+            runOnUiThread(() -> stopOfflineAssistantNative());
+        }
+        @JavascriptInterface
+        public boolean isOfflineAssistantRunning() {
+            return OfflineAssistantService.isRunning() || getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("enabled", false);
+        }
         @JavascriptInterface
         public void execute(String json) {
             try {
@@ -96,6 +110,47 @@ public class MainActivity extends Activity {
         });
         if (savedInstanceState != null) webView.restoreState(savedInstanceState);
         else webView.loadUrl(APP_URL);
+        // If the user enabled offline mode earlier, resume it when they open the APK,
+        // even when the remote web interface cannot load because there is no internet.
+        if (getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("enabled", false)
+                && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startOfflineService(getSharedPreferences("dima_offline", MODE_PRIVATE).getString("language", "ru"));
+        }
+    }
+
+    private void requestOfflineAssistant(String language) {
+        pendingOfflineLanguage = (language == null || language.isEmpty()) ? "ru" : language;
+        java.util.ArrayList<String> missing = new java.util.ArrayList<>();
+        String[] required = new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_CONTACTS,
+                Manifest.permission.CALL_PHONE, Manifest.permission.SEND_SMS,
+                Build.VERSION.SDK_INT >= 33 ? Manifest.permission.READ_MEDIA_AUDIO : Manifest.permission.READ_EXTERNAL_STORAGE};
+        for (String permission : required) {
+            if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) missing.add(permission);
+        }
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+            missing.add("android.permission.POST_NOTIFICATIONS");
+        }
+        if (!missing.isEmpty()) requestPermissions(missing.toArray(new String[0]), REQUEST_OFFLINE_PERMISSIONS);
+        else startOfflineService(pendingOfflineLanguage);
+    }
+
+    private void startOfflineService(String language) {
+        getSharedPreferences("dima_offline", MODE_PRIVATE).edit().putBoolean("enabled", true).putString("language", language).apply();
+        Intent intent = new Intent(this, OfflineAssistantService.class).setAction(OfflineAssistantService.ACTION_START);
+        intent.putExtra(OfflineAssistantService.EXTRA_LANGUAGE, language);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent); else startService(intent);
+            toast("Включаю офлайн-режим. Проверьте уведомление Димы.");
+        } catch (Exception error) {
+            toast("Android не разрешил включить микрофон в фоне. Откройте приложение и попробуйте снова.");
+        }
+    }
+
+    private void stopOfflineAssistantNative() {
+        getSharedPreferences("dima_offline", MODE_PRIVATE).edit().putBoolean("enabled", false).apply();
+        Intent intent = new Intent(this, OfflineAssistantService.class).setAction(OfflineAssistantService.ACTION_STOP);
+        try { startService(intent); } catch (Exception ignored) { }
+        toast("Офлайн-прослушивание выключено.");
     }
 
     private void executeNativeCommand(JSONObject command) {
@@ -278,6 +333,12 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_OFFLINE_PERMISSIONS) {
+            boolean microphoneGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+            if (microphoneGranted) startOfflineService(pendingOfflineLanguage);
+            else toast("Без разрешения на микрофон офлайн-режим не работает.");
+            return;
+        }
         if (requestCode == 1001 && pendingPermissionRequest != null) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) pendingPermissionRequest.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
             else pendingPermissionRequest.deny();
