@@ -42,7 +42,7 @@ const LANGUAGE_SETTINGS = {
   en: { label: 'English', recognition: 'en-US', name: 'английском' },
 } as const;
 function parseDeviceCommand(text: string): NativeCommand | null {
-  const value = text.trim();
+  const value = text.trim().replace(/^(дима|димон|dima|dimon|дзiма|дзіма)[,:\\s]+/i, '').trim();
   const normalized = value.toLocaleLowerCase().replace(/[ё]/g, 'е');
   if (/^(открой|включи|запусти|open|launch|włącz|uruchom|адкрый|уключы).*?(камеру|камера|camera|aparat)/.test(normalized)) return { action: 'camera' };
   const call = normalized.match(/(?:позвони|набери|call|zadzwoń do|zadzwon do|патэлефануй)\s+(?:абоненту\s+|контакту\s+|to\s+|do\s+)?(.+)/);
