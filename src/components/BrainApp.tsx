@@ -4,7 +4,7 @@ import {
   Plus, RotateCw, Send, Settings2, Sparkles, Square, Trash2, Volume2, X,
 } from 'lucide-react';
 import { useChatStatus, useSendChatMessage } from '@/lib/chat-client';
-import { cleanForSpeech, pickRussianVoice, voiceGender } from '@/lib/speech';
+import { cleanForSpeech } from '@/lib/speech';
 import { signInWithGoogle, signOut, useAuthUser, useCloudSync } from '@/lib/cloud-sync';
 
 type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
@@ -131,8 +131,6 @@ export function BrainApp() {
   const [speaking, setSpeaking] = useState(false);
   const [speechError, setSpeechError] = useState('');
   const [requestError, setRequestError] = useState('');
-  const [voiceAvailable, setVoiceAvailable] = useState(true);
-  const [preferredVoice, setPreferredVoice] = useState<SpeechSynthesisVoice | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<RecognitionInstance | null>(null);
   const recognitionBaseRef = useRef('');
@@ -170,14 +168,6 @@ export function BrainApp() {
   useEffect(() => {
     transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, sendMessage.isPending]);
-
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) { setVoiceAvailable(false); return; }
-    const chooseVoice = () => setPreferredVoice(pickRussianVoice(window.speechSynthesis.getVoices()));
-    chooseVoice();
-    window.speechSynthesis.addEventListener('voiceschanged', chooseVoice);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', chooseVoice);
-  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -509,7 +499,7 @@ export function BrainApp() {
               <span className="rate-value" data-testid="text-voice-rate">{preferences.voiceRate.toFixed(1)}×</span>
             </div>
           </div>
-          {!voiceAvailable && <div className="local-note" style={{ textAlign: 'left' }} data-testid="status-voice-unsupported">Озвучивание не поддерживается этим браузером.</div>}
+          
           
           <div className="status-card" data-testid="card-ai-status">
             <div className="status-card-top"><span className={`status-dot ${statusQuery.isLoading ? 'waiting' : status?.configured ? 'ready' : ''}`} />
