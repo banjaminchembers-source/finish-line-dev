@@ -48,8 +48,8 @@ export const Route = createFileRoute("/api/chat")({
                 parts: [{ text: m.content }],
               })),
               tools: [{ google_search: {} }],
+              // Gemini 3.8 Flash no longer supports legacy sampling parameters such as temperature.
               generationConfig: {
-                temperature: 0.7,
                 maxOutputTokens: 4096,
               },
             }),
