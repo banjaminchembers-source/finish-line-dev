@@ -226,6 +226,7 @@ export function BrainApp() {
       setSpeaking(false);
       speakingRef.current = false;
       setSpeechError('Не удалось воспроизвести выбранный голос Adam. Проверьте подключение ElevenLabs. Системный голос не включён, чтобы Dima не менял голос сам.');
+      if (voiceModeRef.current) resumeVoiceListening();
     }
   }, [preferences.voiceRate]);
 
@@ -248,6 +249,9 @@ export function BrainApp() {
     const Recognition = browser.SpeechRecognition ?? browser.webkitSpeechRecognition;
     if (!Recognition) {
       setSpeechError('Голосовой ввод не поддерживается. Попробуйте открыть Dima в актуальном браузере.');
+      voiceModeRef.current = false;
+      setVoiceMode(false);
+      voiceBusyRef.current = false;
       return;
     }
     try {
@@ -327,7 +331,10 @@ export function BrainApp() {
 
   const submitMessage = async (value = draft) => {
     const content = value.trim();
-    if (!content || sendMessage.isPending) return;
+    if (!content || sendMessage.isPending) {
+      if (voiceModeRef.current) resumeVoiceListening();
+      return;
+    }
     const targetThreadId = currentThreadId;
     setDraft('');
     setRequestError('');
@@ -337,11 +344,13 @@ export function BrainApp() {
 
     if (isUnsupported) {
       updateMessages(targetThreadId, (current) => [...current, makeEntry('notice', 'Я работаю внутри браузера и не могу открывать приложения Android, менять настройки телефона или управлять устройством. Запросы на поиск в интернете тоже не выполняю. Могу помочь с вопросом или подготовить инструкцию, которую вы откроете самостоятельно.')]);
+      if (voiceModeRef.current) resumeVoiceListening();
       return;
     }
     if (statusQuery.isLoading) {
       updateMessages(targetThreadId, (current) => current.map((entry) => entry.id === userEntry.id ? { ...entry, localOnly: true } : entry));
       setRequestError('Подключение ещё проверяется. Попробуйте отправить сообщение чуть позже.');
+      if (voiceModeRef.current) resumeVoiceListening();
       return;
     }
     if (!status?.configured) {
@@ -350,6 +359,7 @@ export function BrainApp() {
         ? 'Не удалось проверить подключение к ИИ. Проверьте соединение и повторите попытку.'
         : 'Подключение к ИИ не настроено. Сообщение сохранено только на этом устройстве; попросите администратора настроить провайдера ИИ.';
       setRequestError(message);
+      if (voiceModeRef.current) resumeVoiceListening();
       return;
     }
 
@@ -539,7 +549,7 @@ export function BrainApp() {
               <div className="composer-actions">
                 <span className="composer-hint">{listening ? 'Слушаю вас…' : 'Ввод — отправить · Shift + Ввод — новая строка'}</span>
                 <div className="action-cluster">
-                  <button type="button" className={`mic-button voice-conversation-button ${voiceMode ? 'listening' : ''}`} onClick={toggleVoiceConversation} aria-label={voiceMode ? 'Завершить голосовой диалог' : 'Начать голосовой диалог'} aria-pressed={voiceMode} data-testid="button-voice-conversation">
+                  <button type="button" className={`send-button voice-conversation-button ${voiceMode ? 'listening' : ''}`} onClick={toggleVoiceConversation} aria-label={voiceMode ? 'Завершить голосовой диалог' : 'Начать голосовой диалог'} aria-pressed={voiceMode} data-testid="button-voice-conversation">
                     {voiceMode ? <MicOff size={18} /> : <AudioLines size={18} />}
                     <span className="send-label">{voiceMode ? 'Завершить диалог' : 'Голосовой диалог'}</span>
                   </button>
