@@ -320,9 +320,9 @@ export function BrainApp() {
     }
     setSpeechError('');
     voiceModeRef.current = true;
-    voiceBusyRef.current = false;
+    voiceBusyRef.current = true;
     setVoiceMode(true);
-    startListeningRef.current?.();
+    void speak('Что там?');
   };
 
   const toggleListening = () => {
