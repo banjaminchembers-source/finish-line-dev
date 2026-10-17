@@ -24,6 +24,7 @@ export const Route = createFileRoute("/api/tts")({
         if (!key) return Response.json({ error: "ElevenLabs не подключён." }, { status: 503 });
         const speed = Math.min(1.2, Math.max(0.7, parsed.data.speed ?? 1));
         const voiceId = VOICE_IDS[parsed.data.voice ?? "male"];
+        const voiceId = VOICE_IDS[parsed.data.voice ?? "male"];
         const res = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
           {
