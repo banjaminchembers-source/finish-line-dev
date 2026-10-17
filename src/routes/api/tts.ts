@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-const VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George
+// ElevenLabs Adam is the intended Dima voice. Allow deployment-specific override.
+const VOICE_ID = process.env["ELEVENLABS_VOICE_ID"] || "pNInz6obpgDQGcFmaJgB"; // Adam
 const Body = z.object({ text: z.string().min(1).max(4500), speed: z.number().min(0.5).max(2).optional() });
 
 export const Route = createFileRoute("/api/tts")({
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/api/tts")({
             body: JSON.stringify({
               text: parsed.data.text,
               model_id: "eleven_multilingual_v2",
-              voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.35, use_speaker_boost: true, speed },
+              voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.2, use_speaker_boost: true, speed },
             }),
           },
         );
