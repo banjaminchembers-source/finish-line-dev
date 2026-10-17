@@ -11,7 +11,7 @@ type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
 type ChatEntry = { id: string; role: ChatRole; content: string; time: number; localOnly?: boolean };
 type Conversation = { id: string; title: string; messages: ChatEntry[]; updatedAt: number };
 type ConversationStore = { threads: Conversation[]; currentId: string };
-type Preferences = { autoSpeak: boolean; voiceRate: number };
+type Preferences = { autoSpeak: boolean; voiceRate: number; voice: 'male' | 'female' };
 type RecognitionResult = { 0: { transcript: string }; isFinal: boolean };
 type RecognitionEvent = { resultIndex: number; results: ArrayLike<RecognitionResult> };
 type RecognitionInstance = {
@@ -30,7 +30,7 @@ const LEGACY_THREAD_KEY = 'brain.current-thread.v1';
 const THREADS_KEY = 'brain.conversations.v1';
 const CURRENT_THREAD_KEY = 'brain.current-conversation.v1';
 const PREFS_KEY = 'brain.preferences.v1';
-const defaultPrefs: Preferences = { autoSpeak: false, voiceRate: 1 };
+const defaultPrefs: Preferences = { autoSpeak: false, voiceRate: 1, voice: 'male' };
 const suggestions = [
   { title: 'Собери мысли в план', detail: 'Преврати задачу в понятные шаги', prompt: 'Помоги составить план действий для моей задачи.' },
   { title: 'Объясни простыми словами', detail: 'Разберись в сложной теме без лишнего', prompt: 'Объясни простыми словами, как работает машинное обучение.' },
@@ -99,6 +99,7 @@ function readPreferences(): Preferences {
     return {
       autoSpeak: typeof value.autoSpeak === 'boolean' ? value.autoSpeak : defaultPrefs.autoSpeak,
       voiceRate: typeof value.voiceRate === 'number' ? Math.min(1.5, Math.max(.7, value.voiceRate)) : defaultPrefs.voiceRate,
+      voice: value.voice === 'female' ? 'female' : 'male',
     };
   } catch { return defaultPrefs; }
 }
@@ -200,7 +201,7 @@ export function BrainApp() {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: clean, speed: preferences.voiceRate }),
+        body: JSON.stringify({ text: clean, speed: preferences.voiceRate, voice: preferences.voice }),
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? `Ошибка ${res.status}`);
       const blob = await res.blob();
@@ -484,20 +485,11 @@ export function BrainApp() {
           {authError && <div className="error-card" role="status">{authError}</div>}
           {authReady && !user && messages.length === 0 && <div className="local-note" data-testid="status-local-only">Сейчас разговоры хранятся только на этом устройстве. Войдите через Google, чтобы они были доступны везде.</div>}
           {messages.length === 0 ? (
-            <section className="welcome" aria-labelledby="welcome-heading">
-              <div className="eyebrow"><Sparkles size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Ваше пространство для идей</div>
-              <h1 id="welcome-heading">С чего начнём?</h1>
-              <p>Задайте вопрос, продумайте идею или попросите помочь с задачей. Я здесь, чтобы разложить сложное по полочкам.</p>
-              <div className="voice-actions">
-                <button type="button" className={`voice-action primary ${listening ? 'active' : ''}`} onClick={toggleListening} aria-pressed={listening} data-testid="button-welcome-voice">
-                  <span className="voice-action-icon">{listening ? <MicOff size={22} /> : <Mic size={22} />}</span>
-                  <span><strong>{listening ? 'Слушаю… нажмите, чтобы закончить' : 'Спросить голосом'}</strong><small>Говорите — я запишу вопрос</small></span>
-                </button>
-                <button type="button" className={`voice-action ${preferences.autoSpeak ? 'active' : ''}`} onClick={() => updatePreference({ autoSpeak: !preferences.autoSpeak })} aria-pressed={preferences.autoSpeak} data-testid="button-welcome-autospeak">
-                  <span className="voice-action-icon"><Volume2 size={22} /></span>
-                  <span><strong>{preferences.autoSpeak ? 'Ответы звучат вслух' : 'Слушать ответы'}</strong><small>{preferences.autoSpeak ? 'Нажмите, чтобы выключить' : 'Dima будет читать ответы'}</small></span>
-                </button>
-              </div>
+            <section className="welcome" aria-label="Голосовой диалог">
+              <button type="button" className={`hero-voice-button ${voiceMode ? 'active' : ''}`} onClick={toggleVoiceConversation} aria-pressed={voiceMode} data-testid="button-welcome-voice">
+                {voiceMode ? <MicOff size={38} strokeWidth={1.6} /> : <AudioLines size={42} strokeWidth={1.5} />}
+                <span>{voiceMode ? 'Завершить диалог' : 'Голосовой диалог'}</span>
+              </button>
             </section>
           ) : (
             <section className="conversation" ref={transcriptRef} aria-label="История разговора" data-testid="conversation-history">
@@ -536,12 +528,6 @@ export function BrainApp() {
               </div>}
             </section>
           )}
-
-          {messages.length === 0 && <div className="suggestions" aria-label="Идеи для начала">
-            {suggestions.map((suggestion, index) => <button className="suggestion" key={suggestion.title} onClick={() => void submitMessage(suggestion.prompt)} data-testid={`button-suggestion-${index + 1}`}>
-              <strong>{suggestion.title}</strong><span>{suggestion.detail}</span>
-            </button>)}
-          </div>}
 
           <div className="composer-wrap">
             {speechError && <div className="local-note" role="status" data-testid="status-speech-error">{speechError}</div>}
@@ -590,11 +576,18 @@ export function BrainApp() {
             <button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Закрыть настройки" data-testid="button-close-settings"><X size={17} /></button>
           </div>
           <div className="settings-row">
-            <div><div className="setting-title">Автоматически озвучивать ответы</div><div className="setting-description">Новый ответ будет озвучен выбранным голосом ElevenLabs Adam.</div></div>
+            <div><div className="setting-title">Автоматически озвучивать ответы</div><div className="setting-description">Новый ответ будет озвучен выбранным голосом ElevenLabs.</div></div>
             <button className="switch" role="switch" aria-checked={preferences.autoSpeak} onClick={() => updatePreference({ autoSpeak: !preferences.autoSpeak })} aria-label="Автоматически озвучивать ответы" data-testid="switch-auto-speak" />
           </div>
+          <div className="settings-row voice-choice-row">
+            <div><div className="setting-title">Голос помощника</div><div className="setting-description" data-testid="text-voice-name">Сейчас выбран: {preferences.voice === 'female' ? 'женский голос Bella' : 'мужской голос Adam'}</div></div>
+            <div className="voice-choice" role="group" aria-label="Голос помощника">
+              <button type="button" className={preferences.voice === 'female' ? 'selected' : ''} aria-pressed={preferences.voice === 'female'} onClick={() => updatePreference({ voice: 'female' })} data-testid="button-voice-female">Женский</button>
+              <button type="button" className={preferences.voice === 'male' ? 'selected' : ''} aria-pressed={preferences.voice === 'male'} onClick={() => updatePreference({ voice: 'male' })} data-testid="button-voice-male">Мужской</button>
+            </div>
+          </div>
           <div className="settings-row">
-            <div><div className="setting-title">Скорость речи</div><div className="setting-description" data-testid="text-voice-name">Выбранный голос: ElevenLabs Adam</div></div>
+            <div><div className="setting-title">Скорость речи</div><div className="setting-description">Скорость озвучивания ответов</div></div>
             <div className="rate-control">
               <input type="range" min=".7" max="1.5" step=".1" value={preferences.voiceRate} onChange={(event) => updatePreference({ voiceRate: Number(event.target.value) })} aria-label="Скорость речи" data-testid="input-voice-rate" />
               <span className="rate-value" data-testid="text-voice-rate">{preferences.voiceRate.toFixed(1)}×</span>
@@ -613,7 +606,7 @@ export function BrainApp() {
           </div>
           <div className="status-card setup-card" data-testid="card-secure-provider-setup">
             <div className="status-card-top"><Settings2 size={15} /><span>Безопасное подключение</span></div>
-            <p>Ответы формирует Lovable AI на сервере. Ключ доступа хранится только на сервере и никогда не передаётся в браузер.</p>
+            <p>Ответы формирует Google Gemini на сервере. Ключ доступа хранится только на сервере и никогда не передаётся в браузер.</p>
           </div>
           <div className="dialog-actions"><button className="soft-button" onClick={() => setSettingsOpen(false)} data-testid="button-done-settings"><Check size={15} /> Готово</button></div>
         </section>
