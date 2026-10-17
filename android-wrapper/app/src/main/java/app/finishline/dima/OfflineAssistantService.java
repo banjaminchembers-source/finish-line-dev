@@ -133,7 +133,7 @@ public class OfflineAssistantService extends Service implements RecognitionListe
         String command = stripWake(text);
         if (command != null) {
             awaitingCommand = command.isEmpty();
-            if (!command.isEmpty()) execute(command, raw);
+            if (!command.isEmpty()) execute(command, command);
             else update("Слушаю команду офлайн");
         } else if (awaitingCommand) {
             awaitingCommand=false; execute(text,raw);
@@ -161,11 +161,12 @@ public class OfflineAssistantService extends Service implements RecognitionListe
             call(stripPrefix(raw,"позвони","набери","патэлефануй","call","zadzwoń do","zadzwon do","zadzwoń","zadzwon")); return;
         }
         if(has(text,"отправь сообщение","отправь смс","напиши сообщение","send a message","send message","send sms","wyślij wiadomość","wyslij wiadomosc","адпраў паведамленне","напішы паведамленне")) {
-            String name=stripPrefix(raw,"отправь сообщение","отправь смс","напиши сообщение","send a message to","send message to","send sms to","send a message","send message","send sms","wyślij wiadomość do","wyslij wiadomosc do","wyślij wiadomość","wyslij wiadomosc","адпраў паведамленне","напішы паведамленне");
+            String name=stripPrefix(raw,"отправь сообщение абоненту","отправь сообщение контакту","отправь сообщение","отправь смс абоненту","отправь смс контакту","отправь смс","напиши сообщение абоненту","напиши сообщение контакту","напиши сообщение","send a message to","send message to","send sms to","send a message","send message","send sms","wyślij wiadomość do","wyslij wiadomosc do","wyślij wiadomość","wyslij wiadomosc","адпраў паведамленне","напішы паведамленне");
+            name=name.replaceFirst("^(?i)(абоненту|контакту|to|do)\\s+","").trim();
             if(name.isEmpty()) { update("Не распознал получателя SMS"); return; }
             smsRecipient=name; smsText=null; say("Продиктуйте текст сообщения для "+name); update("Жду текст SMS для "+name); return;
         }
-        if(has(text,"включи музыку","включи песню","включи трек","play ","odtwórz","włącz muzykę","włącz piosenkę","уключы музыку","прайграй")) {
+        if(has(text,"включи музыку","включи песню","включи трек","включи в плеере","play ","odtwórz","włącz muzykę","włącz piosenkę","уключы музыку","прайграй")) {
             playMusic(stripPrefix(raw,"включи в плеере","включи песню","включи музыку","включи трек","play","odtwórz","włącz muzykę","włącz piosenkę","włącz","уключы музыку","прайграй")); return;
         }
         if(has(text,"открой контакты","покажи контакты","open contacts","otwórz kontakty","адкрый кантакты")) {
