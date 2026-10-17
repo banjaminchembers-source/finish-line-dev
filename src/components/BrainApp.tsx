@@ -242,11 +242,11 @@ export function BrainApp() {
       await audio.play();
     } catch (error) {
       if (run !== speechRunRef.current) return;
-      console.warn('George voice unavailable, using device voice', error);
-      setSpeechError('Голос George сейчас недоступен — говорю голосом устройства.');
-      speakWithDevice(text, run);
+      console.warn('Adam voice unavailable', error);
+      setSpeaking(false);
+      setSpeechError('Не удалось воспроизвести выбранный голос Adam. Проверьте подключение ElevenLabs. Системный голос не включён, чтобы Dima не менял голос сам.');
     }
-  }, [preferences.voiceRate, speakWithDevice]);
+  }, [preferences.voiceRate]);
 
   const stopSpeaking = () => {
     speechRunRef.current++;
