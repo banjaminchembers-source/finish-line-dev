@@ -512,7 +512,7 @@ export function BrainApp() {
           </div>
           <div className="status-card setup-card" data-testid="card-secure-provider-setup">
             <div className="status-card-top"><Settings2 size={15} /><span>Безопасное подключение</span></div>
-            <p>Ответы формирует Lovable AI на сервере. Ключ доступа хранится только на сервере и никогда не передаётся в браузер.</p>
+            <p>Ответы формирует OpenAI API на сервере. Секрет OPENAI_API_KEY хранится только в настройках окружения сервера и никогда не передаётся в браузер.</p>
           </div>
           <div className="dialog-actions"><button className="soft-button" onClick={() => setSettingsOpen(false)} data-testid="button-done-settings"><Check size={15} /> Готово</button></div>
         </section>
