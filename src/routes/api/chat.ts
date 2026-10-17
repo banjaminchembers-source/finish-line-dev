@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-const MODEL = process.env["OPENAI_MODEL"] || "gpt-6-astra";
+const MODEL = process.env["OPENAI_MODEL"] || "gpt-5-mini";
 type RuntimeContext = { env?: { OPENAI_API_KEY?: string; OPENAI_MODEL?: string } };
 
 function getOpenAIApiKey(context: unknown): string | undefined {
