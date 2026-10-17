@@ -129,6 +129,11 @@ export function BrainApp() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const voiceModeRef = useRef(false);
+  const voiceBusyRef = useRef(false);
+  const speakingRef = useRef(false);
+  const startListeningRef = useRef<(() => void) | null>(null);
   const [speechError, setSpeechError] = useState('');
   const [requestError, setRequestError] = useState('');
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -190,6 +195,7 @@ export function BrainApp() {
     if (!clean) return;
     setSpeechError('');
     setSpeaking(true);
+    speakingRef.current = true;
     try {
       const res = await fetch('/api/tts', {
         method: 'POST',
@@ -202,13 +208,28 @@ export function BrainApp() {
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); if (run === speechRunRef.current) setSpeaking(false); };
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        if (run === speechRunRef.current) {
+          setSpeaking(false);
+          speakingRef.current = false;
+          if (voiceModeRef.current) {
+            voiceBusyRef.current = false;
+            window.setTimeout(() => startListeningRef.current?.(), 300);
+          }
+        }
+      };
       await audio.play();
     } catch (error) {
       if (run !== speechRunRef.current) return;
       console.warn('Adam voice unavailable', error);
       setSpeaking(false);
+      speakingRef.current = false;
       setSpeechError('Не удалось воспроизвести выбранный голос Adam. Проверьте подключение ElevenLabs. Системный голос не включён, чтобы Dima не менял голос сам.');
+      if (voiceModeRef.current) {
+        voiceBusyRef.current = false;
+        window.setTimeout(() => startListeningRef.current?.(), 350);
+      }
     }
   }, [preferences.voiceRate]);
 
@@ -217,6 +238,12 @@ export function BrainApp() {
     audioRef.current?.pause();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setSpeaking(false);
+    speakingRef.current = false;
+  };
+
+  const resumeVoiceListening = () => {
+    voiceBusyRef.current = false;
+    if (voiceModeRef.current) window.setTimeout(() => startListeningRef.current?.(), 350);
   };
 
   const startListening = () => {
@@ -225,6 +252,9 @@ export function BrainApp() {
     const Recognition = browser.SpeechRecognition ?? browser.webkitSpeechRecognition;
     if (!Recognition) {
       setSpeechError('Голосовой ввод не поддерживается. Попробуйте открыть Dima в актуальном браузере.');
+      voiceModeRef.current = false;
+      setVoiceMode(false);
+      voiceBusyRef.current = false;
       return;
     }
     try {
@@ -234,16 +264,38 @@ export function BrainApp() {
       recognition.continuous = false;
       recognition.onresult = (event) => {
         let spoken = '';
-        for (let i = 0; i < event.results.length; i += 1) spoken += (event.results[i]?.[0].transcript ?? "");
-        if (spoken) setDraft(`${recognitionBaseRef.current}${recognitionBaseRef.current ? ' ' : ''}${spoken}`.trim());
+        let finalSpoken = '';
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const result = event.results[i];
+          const transcript = result?.[0].transcript ?? '';
+          spoken += transcript;
+          if (result?.isFinal) finalSpoken += `${transcript} `;
+        }
+        if (voiceModeRef.current && finalSpoken.trim()) {
+          voiceBusyRef.current = true;
+          setDraft('');
+          recognition.stop();
+          void submitMessage(finalSpoken.trim());
+        } else if (spoken) {
+          setDraft(`${recognitionBaseRef.current}${recognitionBaseRef.current ? ' ' : ''}${spoken}`.trim());
+        }
       };
       recognition.onerror = (event) => {
         setListening(false);
         setSpeechError(event.error === 'not-allowed'
           ? 'Нет доступа к микрофону. Разрешите его в настройках браузера.'
           : 'Не удалось распознать речь. Проверьте микрофон и попробуйте ещё раз.');
+        if (event.error === 'not-allowed') {
+          voiceModeRef.current = false;
+          setVoiceMode(false);
+        }
       };
-      recognition.onend = () => setListening(false);
+      recognition.onend = () => {
+        setListening(false);
+        if (voiceModeRef.current && !voiceBusyRef.current && !speakingRef.current) {
+          window.setTimeout(() => startListeningRef.current?.(), 300);
+        }
+      };
       recognitionRef.current = recognition;
       recognitionBaseRef.current = draft.trim();
       recognition.start();
@@ -252,6 +304,25 @@ export function BrainApp() {
       setListening(false);
       setSpeechError('Не удалось включить микрофон. Попробуйте ещё раз.');
     }
+  };
+
+  startListeningRef.current = startListening;
+
+  const toggleVoiceConversation = () => {
+    if (voiceModeRef.current) {
+      voiceModeRef.current = false;
+      voiceBusyRef.current = false;
+      setVoiceMode(false);
+      recognitionRef.current?.stop();
+      stopSpeaking();
+      setListening(false);
+      return;
+    }
+    setSpeechError('');
+    voiceModeRef.current = true;
+    voiceBusyRef.current = false;
+    setVoiceMode(true);
+    startListeningRef.current?.();
   };
 
   const toggleListening = () => {
@@ -263,7 +334,10 @@ export function BrainApp() {
 
   const submitMessage = async (value = draft) => {
     const content = value.trim();
-    if (!content || sendMessage.isPending) return;
+    if (!content || sendMessage.isPending) {
+      if (voiceModeRef.current) resumeVoiceListening();
+      return;
+    }
     const targetThreadId = currentThreadId;
     setDraft('');
     setRequestError('');
@@ -273,11 +347,13 @@ export function BrainApp() {
 
     if (isUnsupported) {
       updateMessages(targetThreadId, (current) => [...current, makeEntry('notice', 'Я работаю внутри браузера и не могу открывать приложения Android, менять настройки телефона или управлять устройством. Запросы на поиск в интернете тоже не выполняю. Могу помочь с вопросом или подготовить инструкцию, которую вы откроете самостоятельно.')]);
+      if (voiceModeRef.current) resumeVoiceListening();
       return;
     }
     if (statusQuery.isLoading) {
       updateMessages(targetThreadId, (current) => current.map((entry) => entry.id === userEntry.id ? { ...entry, localOnly: true } : entry));
       setRequestError('Подключение ещё проверяется. Попробуйте отправить сообщение чуть позже.');
+      if (voiceModeRef.current) resumeVoiceListening();
       return;
     }
     if (!status?.configured) {
@@ -286,6 +362,7 @@ export function BrainApp() {
         ? 'Не удалось проверить подключение к ИИ. Проверьте соединение и повторите попытку.'
         : 'Подключение к ИИ не настроено. Сообщение сохранено только на этом устройстве; попросите администратора настроить провайдера ИИ.';
       setRequestError(message);
+      if (voiceModeRef.current) resumeVoiceListening();
       return;
     }
 
@@ -295,10 +372,18 @@ export function BrainApp() {
       const assistantText = response?.message?.content;
       if (typeof assistantText !== 'string' || !assistantText.trim()) {
         setRequestError('Сервис не вернул ответ. Попробуйте отправить сообщение ещё раз.');
+        if (voiceModeRef.current) resumeVoiceListening();
         return;
       }
       updateMessages(targetThreadId, (current) => [...current, makeEntry('assistant', assistantText)]);
-      if (preferences.autoSpeak) speak(assistantText);
+      if (voiceModeRef.current || preferences.autoSpeak) {
+        if (voiceModeRef.current) voiceBusyRef.current = true;
+        void speak(assistantText);
+      } else if (voiceModeRef.current) {
+        resumeVoiceListening();
+      } else {
+        voiceBusyRef.current = false;
+      }
     } catch (error) {
       const apiError = error as { message?: string; data?: { error?: string }; response?: { data?: { error?: string } } };
       const serverText = apiError.data?.error ?? apiError.response?.data?.error;
@@ -306,12 +391,16 @@ export function BrainApp() {
         ? 'Подключение к ИИ не настроено. Обратитесь к администратору, чтобы настроить провайдера.'
         : 'Не удалось получить ответ от ИИ. Проверьте подключение и повторите попытку.';
       setRequestError(message);
+      if (voiceModeRef.current) resumeVoiceListening();
     }
   };
 
   const clearConversation = () => {
     if (!window.confirm('Очистить текущий разговор? Будут удалены только его сообщения; остальные разговоры останутся сохранены.')) return;
     stopSpeaking();
+    voiceModeRef.current = false;
+    voiceBusyRef.current = false;
+    setVoiceMode(false);
     recognitionRef.current?.stop();
     setListening(false);
     updateMessages(currentThreadId, () => []);
@@ -450,6 +539,7 @@ export function BrainApp() {
           <div className="composer-wrap">
             {speechError && <div className="local-note" role="status" data-testid="status-speech-error">{speechError}</div>}
             {speaking && <div className="local-note" data-testid="status-speaking">Dima говорит · <button className="voice-stop" onClick={stopSpeaking} data-testid="button-stop-speaking"><Square size={11} fill="currentColor" style={{ verticalAlign: '-1px' }} /> Остановить</button></div>}
+            {voiceMode && <div className="local-note" role="status" data-testid="status-voice-conversation">{speaking ? 'Dima отвечает голосом…' : sendMessage.isPending || voiceBusyRef.current ? 'Dima думает…' : listening ? 'Говорите, я слушаю. Для завершения нажмите «Завершить диалог».' : 'Голосовой диалог активен'}</div>}
             <form className="composer" onSubmit={(event) => { event.preventDefault(); void submitMessage(); }}>
               <textarea
                 value={draft}
@@ -463,6 +553,10 @@ export function BrainApp() {
               <div className="composer-actions">
                 <span className="composer-hint">{listening ? 'Слушаю вас…' : 'Ввод — отправить · Shift + Ввод — новая строка'}</span>
                 <div className="action-cluster">
+                  <button type="button" className={`send-button voice-conversation-button ${voiceMode ? 'listening' : ''}`} onClick={toggleVoiceConversation} aria-label={voiceMode ? 'Завершить голосовой диалог' : 'Начать голосовой диалог'} aria-pressed={voiceMode} data-testid="button-voice-conversation">
+                    {voiceMode ? <MicOff size={18} /> : <AudioLines size={18} />}
+                    <span className="send-label">{voiceMode ? 'Завершить диалог' : 'Голосовой диалог'}</span>
+                  </button>
                   <button type="button" className={`mic-button ${listening ? 'listening' : ''}`} onClick={toggleListening} aria-label={listening ? 'Остановить запись' : 'Надиктовать сообщение'} aria-pressed={listening} data-testid="button-microphone">
                     {listening ? <MicOff size={18} /> : <Mic size={18} />}
                   </button>
