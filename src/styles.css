@@ -343,7 +343,7 @@ body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 .conversation { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .sheet-backdrop { overflow-y: auto; place-items: center; padding: max(10px, env(safe-area-inset-top, 0px)) 12px max(10px, env(safe-area-inset-bottom, 0px)); }
 .settings-sheet { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
-.voice-choice { display: flex; gap: 5px; padding: 4px; border: 1px solid #303341; border-radius: 13px; background: #111319; flex-shrink: 0; }
+.voice-choice { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px; border: 1px solid #303341; border-radius: 13px; background: #111319; flex-shrink: 0; }
 .voice-choice button { min-height: 36px; padding: 0 11px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #9da2b4; font-size: 12px; cursor: pointer; }
 .voice-choice button.selected { background: #30344d; border-color: #59618b; color: #f0f1ff; }
 @media (max-width: 760px) {
