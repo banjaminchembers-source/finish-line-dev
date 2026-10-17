@@ -334,69 +334,6 @@ body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 .top-actions { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 .main { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 0 0 4px; }
 .welcome { flex: 1 1 auto; min-height: 0; width: 100%; padding: 12px 0; display: flex; align-items: center; justify-content: center; }
-.hero-voice-button { width: clamp(164px, 24vw, 230px); height: clamp(164px, 24vw, 230px); border-radius: 50%; border: 1px solid rgba(166,180,255,.55); color: #f4f5ff; background: radial-gradient(circle at 35% 25%, rgba(142,157,255,.32), rgba(75,77,145,.18) 52%, rgba(25,27,43,.96) 100%); box-shadow: 0 0 0 10px rgba(125,139,239,.035), 0 0 48px rgba(105,117,230,.18), inset 0 1px 0 rgba(255,255,255,.12); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; color: #e7eaff; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
-.hero-voice-button:hover { transform: translateY(-2px); box-shadow: 0 0 0 14px rgba(125,139,239,.05), 0 0 65px rgba(105,117,230,.25), inset 0 1px 0 rgba(255,255,255,.14); }
-.hero-voice-button.active { border-color: #df9db9; background: radial-gradient(circle at 35% 25%, rgba(229,135,178,.34), rgba(105,61,112,.24) 54%, rgba(25,22,38,.98) 100%); animation: hero-pulse 1.8s ease-in-out infinite; }
-@keyframes hero-pulse { 50% { box-shadow: 0 0 0 16px rgba(214,126,174,.05), 0 0 62px rgba(214,126,174,.25); } }
-.composer-wrap { flex: 0 0 auto; margin: auto auto 0; padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px)); }
-.composer { padding: 9px; }
-.conversation { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.sheet-backdrop { overflow-y: auto; place-items: center; padding: max(10px, env(safe-area-inset-top, 0px)) 12px max(10px, env(safe-area-inset-bottom, 0px)); }
-.settings-sheet { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
-.voice-choice { display: flex; gap: 5px; padding: 4px; border: 1px solid #303341; border-radius: 13px; background: #111319; flex-shrink: 0; }
-.voice-choice button { min-height: 36px; padding: 0 11px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #9da2b4; font-size: 12px; cursor: pointer; }
-.voice-choice button.selected { background: #30344d; border-color: #59618b; color: #f0f1ff; }
-@media (max-width: 760px) {
-  .layout { width: calc(100% - 24px); }
-  .topbar { align-items: flex-start; padding-bottom: 8px; }
-  .top-actions { gap: 5px; max-width: 72%; }
-  .top-actions .soft-button { min-height: 38px; padding: 0 9px; }
-  .top-actions .icon-button { min-height: 38px; width: 38px; }
-  .brand { gap: 8px; }
-  .brand-mark { width: 34px; height: 34px; }
-  .brand-name { font-size: 13px; }
-  .main { padding-top: 0; }
-  .hero-voice-button { width: clamp(150px, 42vw, 200px); height: clamp(150px, 42vw, 200px); }
-  .composer-wrap { padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
-  .composer textarea { min-height: 38px; max-height: 18dvh; padding-top: 5px; padding-bottom: 5px; }
-  .composer-foot { padding-top: 6px; }
-  .composer-hint { display: none; }
-  .composer-actions { justify-content: flex-end; }
-}
-@media (max-height: 600px) {
-  .topbar { padding-top: max(6px, env(safe-area-inset-top, 0px)); padding-bottom: 5px; }
-  .brand-caption { display: none; }
-  .main { padding-top: 0; }
-  .hero-voice-button { width: 132px; height: 132px; gap: 8px; font-size: 12px; }
-  .hero-voice-button svg { width: 30px; height: 30px; }
-  .composer-wrap { padding-top: 3px; padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px)); }
-  .composer { padding: 6px; }
-  .composer textarea { min-height: 30px; max-height: 12dvh; }
-  .composer-foot { display: none; }
-  .settings-sheet { padding: 15px; }
-  .sheet-head { margin-bottom: 12px; }
-  .settings-row { padding: 10px 0; }
-}
-@media (max-width: 400px) {
-  .layout { width: calc(100% - 16px); }
-  .topbar { gap: 5px; }
-  .top-actions { max-width: 74%; }
-  .top-actions .soft-button { min-width: 36px; }
-  .top-actions .soft-button span { display: none; }
-  .settings-row { gap: 10px; }
-  .voice-choice button { padding: 0 8px; }
-}
-
-
-/* Responsive viewport layout for Android phones, tablets and landscape mode. */
-html, body, #root, .app-shell { width: 100%; height: 100%; min-height: 0; }
-body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
-.app-shell { height: 100dvh; min-height: 0; overflow: hidden; }
-.layout { width: min(100% - 32px, 1160px); height: 100dvh; min-height: 0; overflow: hidden; }
-.topbar { flex: 0 0 auto; gap: 12px; min-width: 0; padding-top: max(12px, env(safe-area-inset-top, 0px)); padding-bottom: 12px; }
-.top-actions { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
-.main { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 0 0 4px; }
-.welcome { flex: 1 1 auto; min-height: 0; width: 100%; padding: 12px 0; display: flex; align-items: center; justify-content: center; }
 .hero-voice-button { width: clamp(164px, 24vw, 230px); height: clamp(164px, 24vw, 230px); border-radius: 50%; border: 1px solid rgba(166,180,255,.55); background: radial-gradient(circle at 35% 25%, rgba(142,157,255,.32), rgba(75,77,145,.18) 52%, rgba(25,27,43,.96) 100%); box-shadow: 0 0 0 10px rgba(125,139,239,.035), 0 0 48px rgba(105,117,230,.18), inset 0 1px 0 rgba(255,255,255,.12); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; color: #e7eaff; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
 .hero-voice-button:hover { transform: translateY(-2px); box-shadow: 0 0 0 14px rgba(125,139,239,.05), 0 0 65px rgba(105,117,230,.25), inset 0 1px 0 rgba(255,255,255,.14); }
 .hero-voice-button.active { border-color: #df9db9; background: radial-gradient(circle at 35% 25%, rgba(229,135,178,.34), rgba(105,61,112,.24) 54%, rgba(25,22,38,.98) 100%); animation: hero-pulse 1.8s ease-in-out infinite; }
