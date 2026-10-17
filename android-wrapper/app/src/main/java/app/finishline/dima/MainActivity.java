@@ -10,6 +10,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.telephony.SmsManager;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.webkit.JavascriptInterface;
@@ -22,12 +23,15 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import org.json.JSONObject;
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     private static final String APP_URL = "https://finish-line-dev.lovable.app/";
     private static final String APP_HOST = "finish-line-dev.lovable.app";
     private static final int REQUEST_CONTACTS = 2001;
     private static final int REQUEST_AUDIO = 2002;
+    private static final int REQUEST_CALL = 2003;
+    private static final int REQUEST_SMS = 2004;
     private WebView webView;
     private PermissionRequest pendingPermissionRequest;
     private JSONObject pendingNativeCommand;
@@ -100,18 +104,20 @@ public class MainActivity extends Activity {
             case "camera": openCamera(); break;
             case "call":
                 if (ensureContactsPermission(command)) return;
+                if (ensureCallPermission(command)) return;
                 openCall(command.optString("name", ""));
                 break;
             case "sms":
                 if (ensureContactsPermission(command)) return;
-                openSms(command.optString("name", ""), command.optString("text", ""));
+                if (ensureSmsPermission(command)) return;
+                sendSms(command.optString("name", ""), command.optString("text", ""));
                 break;
             case "contacts":
                 String contactName = command.optString("name", "");
                 if (contactName.isEmpty()) openContacts();
                 else {
                     if (ensureContactsPermission(command)) return;
-                    openCall(contactName);
+                    showContactNumber(contactName);
                 }
                 break;
             case "music":
@@ -123,7 +129,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean ensureContactsPermission(JSONObject command) {
-        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             pendingNativeCommand = command;
             requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, REQUEST_CONTACTS);
             return true;
@@ -133,7 +139,7 @@ public class MainActivity extends Activity {
 
     private boolean ensureAudioPermission(JSONObject command) {
         String permission = Build.VERSION.SDK_INT >= 33 ? Manifest.permission.READ_MEDIA_AUDIO : Manifest.permission.READ_EXTERNAL_STORAGE;
-        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
             pendingNativeCommand = command;
             requestPermissions(new String[]{permission}, REQUEST_AUDIO);
             return true;
@@ -141,34 +147,30 @@ public class MainActivity extends Activity {
         return false;
     }
 
+    private boolean ensureCallPermission(JSONObject command) {
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            pendingNativeCommand = command;
+            requestPermissions(new String[]{Manifest.permission.CALL_PHONE}, REQUEST_CALL);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean ensureSmsPermission(JSONObject command) {
+        if (checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            pendingNativeCommand = command;
+            requestPermissions(new String[]{Manifest.permission.SEND_SMS}, REQUEST_SMS);
+            return true;
+        }
+        return false;
+    }
+
     private void openCamera() {
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        launch(intent, "Не найдено приложение камеры.");
+        launch(new Intent(MediaStore.ACTION_IMAGE_CAPTURE), "Не найдено приложение камеры.");
     }
 
     private void openContacts() {
         launch(new Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI), "Не удалось открыть контакты.");
-    }
-
-    private void openCall(String name) {
-        String number = findPhoneNumber(name);
-        if (number == null) {
-            if (name.matches("[+0-9() .-]{5,}")) number = name;
-            else { toast("Контакт «" + name + "» не найден. Проверьте имя и разрешение на контакты."); return; }
-        }
-        launch(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))), "Не удалось открыть набор номера.");
-    }
-
-    private void openSms(String name, String text) {
-        if (text.trim().isEmpty()) { toast("Текст SMS пустой, отправка отменена."); return; }
-        String number = findPhoneNumber(name);
-        if (number == null) {
-            if (name.matches("[+0-9() .-]{5,}")) number = name;
-            else { toast("Контакт «" + name + "» не найден. Сообщение не открыто."); return; }
-        }
-        Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(number)));
-        intent.putExtra("sms_body", text);
-        launch(intent, "Не найдено приложение для SMS.");
     }
 
     private String findPhoneNumber(String name) {
@@ -177,7 +179,7 @@ public class MainActivity extends Activity {
         try {
             cursor = getContentResolver().query(
                 ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME},
+                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?",
                 new String[]{"%" + name.trim() + "%"},
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
@@ -189,6 +191,49 @@ public class MainActivity extends Activity {
             if (cursor != null) cursor.close();
         }
         return null;
+    }
+
+    private String resolveNumber(String name) {
+        String number = findPhoneNumber(name);
+        if (number != null) return number;
+        return name != null && name.matches("[+0-9() .-]{5,}") ? name : null;
+    }
+
+    private void openCall(String name) {
+        String number = resolveNumber(name);
+        if (number == null) { toast("Контакт «" + name + "» не найден. Проверьте имя и разрешение на контакты."); return; }
+        try {
+            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)));
+            startActivity(intent);
+        } catch (SecurityException exception) {
+            toast("Android не разрешил звонок. Проверьте разрешение на телефонные вызовы.");
+        } catch (Exception exception) {
+            toast("Не удалось начать звонок.");
+        }
+    }
+
+    private void sendSms(String name, String text) {
+        if (text.trim().isEmpty()) { toast("Текст SMS пустой, отправка отменена."); return; }
+        String number = resolveNumber(name);
+        if (number == null) { toast("Контакт «" + name + "» не найден. SMS не отправлено."); return; }
+        try {
+            SmsManager manager = getSystemService(SmsManager.class);
+            if (manager == null) { toast("SMS недоступны на этом устройстве."); return; }
+            ArrayList<String> parts = manager.divideMessage(text);
+            if (parts.size() <= 1) manager.sendTextMessage(number, null, text, null, null);
+            else manager.sendMultipartTextMessage(number, null, parts, null, null);
+            toast("SMS передано приложению оператора для отправки.");
+        } catch (SecurityException exception) {
+            toast("Android не разрешил отправку SMS.");
+        } catch (Exception exception) {
+            toast("Не удалось отправить SMS. Проверьте SIM-карту и сеть.");
+        }
+    }
+
+    private void showContactNumber(String name) {
+        String number = findPhoneNumber(name);
+        if (number == null) toast("Контакт «" + name + "» не найден.");
+        else toast(name + ": " + number);
     }
 
     private void playLocalMusic(String query) {
@@ -211,9 +256,7 @@ public class MainActivity extends Activity {
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 toast("Открываю: " + title);
                 launch(intent, "Не найден музыкальный плеер.");
-            } else {
-                toast("Не нашёл эту песню в локальной музыкальной библиотеке.");
-            }
+            } else toast("Не нашёл эту песню в локальной музыкальной библиотеке.");
         } catch (Exception exception) {
             toast("Не удалось найти аудиофайл.");
         } finally {
@@ -225,9 +268,7 @@ public class MainActivity extends Activity {
         try {
             if (intent.resolveActivity(getPackageManager()) != null) startActivity(intent);
             else toast(error);
-        } catch (Exception exception) {
-            toast(error);
-        }
+        } catch (Exception exception) { toast(error); }
     }
 
     private void toast(String message) {
@@ -243,11 +284,11 @@ public class MainActivity extends Activity {
             pendingPermissionRequest = null;
             return;
         }
-        if (requestCode == REQUEST_CONTACTS || requestCode == REQUEST_AUDIO) {
+        if (requestCode == REQUEST_CONTACTS || requestCode == REQUEST_AUDIO || requestCode == REQUEST_CALL || requestCode == REQUEST_SMS) {
             JSONObject command = pendingNativeCommand;
             pendingNativeCommand = null;
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED && command != null) executeNativeCommand(command);
-            else toast("Без этого разрешения команда не выполнена.");
+            else toast("Разрешение не выдано. Команда не выполнена.");
         }
     }
 
