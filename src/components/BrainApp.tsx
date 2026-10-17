@@ -137,16 +137,6 @@ function makeEntry(role: ChatRole, content: string): ChatEntry {
   return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, role, content, time: Date.now() };
 }
 
-function isDeviceCommand(text: string): boolean {
-  const value = text.toLocaleLowerCase('ru-RU').replace(/[ё]/g, 'е');
-  const opensDevice = ['открой', 'откройте', 'запусти', 'запустите', 'перейди в', 'перейдите в', 'включи', 'включите', 'позвони', 'позвоните', 'набери'].some((phrase) => value.includes(phrase));
-  const deviceTarget = ['youtube', 'ютуб', 'настройк', 'камер', 'приложени', 'вайбер', 'whatsapp', 'телеграм', 'telegram', 'инстаграм', 'instagram', 'галере', 'bluetooth', 'блютуз', 'телефон', 'контакт'];
-  const searchIntent = ['найди', 'найти', 'поищи', 'поищите', 'посмотри', 'поиск', 'ищи'].some((phrase) => value.includes(phrase));
-  const onlineTarget = ['интернет', 'в сети', 'браузер', 'сайт', 'онлайн'].some((phrase) => value.includes(phrase));
-  return (opensDevice && deviceTarget.some((target) => value.includes(target)))
-    || (searchIntent && onlineTarget);
-}
-
 function formatTime(time: number): string {
   return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(time);
 }
@@ -303,6 +293,14 @@ export function BrainApp() {
           if (result?.isFinal) finalSpoken += `${transcript} `;
         }
         if (voiceModeRef.current && finalSpoken.trim()) {
+          const wakePhrase = finalSpoken.trim().toLocaleLowerCase().replace(/[.,!?]/g, '').trim();
+          if (/^(дима|димон|dima|dimon|дзiма|дзіма)$/.test(wakePhrase)) {
+            voiceBusyRef.current = true;
+            setDraft('');
+            recognition.stop();
+            void speak('Да.');
+            return;
+          }
           voiceBusyRef.current = true;
           setDraft('');
           recognition.stop();
