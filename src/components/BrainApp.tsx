@@ -226,7 +226,10 @@ export function BrainApp() {
       setSpeaking(false);
       speakingRef.current = false;
       setSpeechError('Не удалось воспроизвести выбранный голос Adam. Проверьте подключение ElevenLabs. Системный голос не включён, чтобы Dima не менял голос сам.');
-      if (voiceModeRef.current) resumeVoiceListening();
+      if (voiceModeRef.current) {
+        voiceBusyRef.current = false;
+        window.setTimeout(() => startListeningRef.current?.(), 350);
+      }
     }
   }, [preferences.voiceRate]);
 
@@ -369,6 +372,7 @@ export function BrainApp() {
       const assistantText = response?.message?.content;
       if (typeof assistantText !== 'string' || !assistantText.trim()) {
         setRequestError('Сервис не вернул ответ. Попробуйте отправить сообщение ещё раз.');
+        if (voiceModeRef.current) resumeVoiceListening();
         return;
       }
       updateMessages(targetThreadId, (current) => [...current, makeEntry('assistant', assistantText)]);
