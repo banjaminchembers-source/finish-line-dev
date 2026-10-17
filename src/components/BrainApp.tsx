@@ -219,16 +219,16 @@ export function BrainApp() {
       await audio.play();
     } catch (error) {
       if (run !== speechRunRef.current) return;
-      console.warn('Adam voice unavailable', error);
+      console.warn('Selected voice unavailable', error);
       setSpeaking(false);
       speakingRef.current = false;
-      setSpeechError('Не удалось воспроизвести выбранный голос Adam. Проверьте подключение ElevenLabs. Системный голос не включён, чтобы Dima не менял голос сам.');
+      setSpeechError('Не удалось воспроизвести выбранный голос. Проверьте подключение ElevenLabs и настройки голоса.');
       if (voiceModeRef.current) {
         voiceBusyRef.current = false;
         window.setTimeout(() => startListeningRef.current?.(), 350);
       }
     }
-  }, [preferences.voiceRate]);
+  }, [preferences.voiceRate, preferences.voice]);
 
   const stopSpeaking = () => {
     speechRunRef.current++;
