@@ -1,3 +1,4 @@
 - [x] Voice ask / listen buttons on home screen
 - [x] Google sign-in + conversation history saved in account
+- [ ] Verify Gemini internet search and source links with a real question.
 - [ ] Fix voice errors and use the specific ElevenLabs voice «Дима» — blocked: voice listing returns HTTP 401; the intended voice link or ID is needed.
