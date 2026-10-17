@@ -48,7 +48,7 @@ function parseDeviceCommand(text: string): NativeCommand | null {
   const call = normalized.match(/(?:позвони|набери|call|zadzwoń do|zadzwon do|патэлефануй)\s+(?:абоненту\s+|контакту\s+|to\s+|do\s+)?(.+)/);
   if (call?.[1]) return { action: 'call', name: value.slice(value.toLocaleLowerCase().indexOf(call[1])).trim() };
   const music = normalized.match(/(?:включи|найди|запусти|play|find|odtwórz|włącz|znajdź|уключы|прайграй)\s+(?:песню\s+|музыку\s+|song\s+|music\s+|piosenkę\s+|muzykę\s+)?(.+)/);
-  if (music?.[1] && /музык|песн|трек|song|music|piosenk|utwor|мелоды|песню/.test(normalized)) return { action: 'music', query: value.slice(value.toLocaleLowerCase().indexOf(music[1])).trim() };
+  if (music?.[1] && /музык|песн|трек|song|music|piosenk|utwor|мелоды|песню/.test(normalized)) return { action: 'music', query: value.replace(/^(включи|найди|запусти|play|find|odtwórz|włącz|znajdź|уключы|прайграй)\\s+(?:в\\s+плеере\\s+|in\\s+(?:the\\s+)?player\\s+|w\\s+odtwarzaczu\\s+)?(?:песню\\s+|музыку\\s+|трек\\s+|song\\s+|music\\s+|piosenkę\\s+|muzykę\\s+|utwór\\s+)?/i, '').trim() };
   if (/^(открой|покажи|найди|open|show|find|otwórz|pokaż|znajdź|пакажы|адкрый)\s+(контакты|контакт|contacts|contact|kontakty|kontakty|кантакты)/.test(normalized)) {
     const name = value.replace(/^(открой|покажи|найди|open|show|find|otwórz|pokaż|znajdź|пакажы|адкрый)\s+(контакты|контакт|contacts|contact|kontakty|кантакты)\s*/i, '').trim();
     return { action: 'contacts', ...(name ? { name } : {}) };
@@ -370,6 +370,8 @@ export function BrainApp() {
     const targetThreadId = currentThreadId;
     setDraft('');
     setRequestError('');
+    const userEntry = makeEntry('user', content);
+    updateMessages(targetThreadId, (current) => [...current, userEntry]);
 
     const normalizedCommand = content.toLocaleLowerCase().trim().replace(/[.!?]+$/g, '');
     if (pendingSms) {
@@ -391,7 +393,7 @@ export function BrainApp() {
         const command: NativeCommand = { action: 'sms', name: pendingSms.recipient, text: pendingSms.text ?? '' };
         setPendingSms(null);
         if (callAndroid(command)) {
-          const note = 'Открываю приложение SMS с указанным получателем и проверенным текстом. Проверьте сообщение и нажмите системную кнопку отправки.';
+          const note = 'Подтверждение получено. Отправляю SMS указанному контакту.';
           updateMessages(targetThreadId, (current) => [...current, makeEntry('notice', note)]);
           if (voiceModeRef.current) void speak(note);
         } else {
@@ -424,19 +426,10 @@ export function BrainApp() {
     }
     if (nativeCommand) {
       const ok = callAndroid(nativeCommand);
-      const commandLabels: Record<NativeCommand['action'], string> = { camera: 'Открываю камеру.', call: `Открываю набор номера для контакта ${nativeCommand.action === 'call' ? nativeCommand.name : ''}.`, music: `Ищу аудио «${nativeCommand.action === 'music' ? nativeCommand.query : ''}» на устройстве.`, contacts: 'Открываю контакты.' , sms: 'Открываю SMS.' };
+      const commandLabels: Record<NativeCommand['action'], string> = { camera: 'Открываю камеру.', call: `Звоню контакту ${nativeCommand.action === 'call' ? nativeCommand.name : ''}.`, music: `Ищу аудио «${nativeCommand.action === 'music' ? nativeCommand.query : ''}» на устройстве.`, contacts: 'Открываю контакты.' , sms: 'Открываю SMS.' };
       const note = ok ? commandLabels[nativeCommand.action] : 'Эта команда требует установленного Android-приложения Dima. Откройте именно APK, а не веб-версию в браузере.';
       updateMessages(targetThreadId, (current) => [...current, makeEntry(ok ? 'notice' : 'error', note)]);
       if (voiceModeRef.current) void speak(note);
-      return;
-    }
-    const isUnsupported = false;
-    const userEntry = { ...makeEntry('user', content), localOnly: isUnsupported };
-    updateMessages(targetThreadId, (current) => [...current, userEntry]);
-
-    if (isUnsupported) {
-      updateMessages(targetThreadId, (current) => [...current, makeEntry('notice', 'Я работаю внутри браузера и не могу открывать приложения Android, менять настройки телефона или управлять устройством. Запросы на поиск в интернете тоже не выполняю. Могу помочь с вопросом или подготовить инструкцию, которую вы откроете самостоятельно.')]);
-      if (voiceModeRef.current) resumeVoiceListening();
       return;
     }
     if (statusQuery.isLoading) {
