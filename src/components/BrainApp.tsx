@@ -489,7 +489,7 @@ export function BrainApp() {
             <button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Закрыть настройки" data-testid="button-close-settings"><X size={17} /></button>
           </div>
           <div className="settings-row">
-            <div><div className="setting-title">Автоматически озвучивать ответы</div><div className="setting-description">Новый ответ будет прочитан вслух голосом браузера.</div></div>
+            <div><div className="setting-title">Автоматически озвучивать ответы</div><div className="setting-description">Новый ответ будет озвучен выбранным голосом ElevenLabs Adam.</div></div>
             <button className="switch" role="switch" aria-checked={preferences.autoSpeak} onClick={() => updatePreference({ autoSpeak: !preferences.autoSpeak })} aria-label="Автоматически озвучивать ответы" data-testid="switch-auto-speak" />
           </div>
           <div className="settings-row">
