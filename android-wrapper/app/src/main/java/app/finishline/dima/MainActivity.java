@@ -3,6 +3,7 @@ package app.finishline.dima;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -112,9 +113,17 @@ public class MainActivity extends Activity {
         else webView.loadUrl(APP_URL);
         // If the user enabled offline mode earlier, resume it when they open the APK,
         // even when the remote web interface cannot load because there is no internet.
-        if (getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("enabled", false)
-                && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+        boolean offlineEnabled = getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("enabled", false);
+        if (offlineEnabled && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             startOfflineService(getSharedPreferences("dima_offline", MODE_PRIVATE).getString("language", "ru"));
+        } else if (!getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("offline_prompt_shown", false)) {
+            getSharedPreferences("dima_offline", MODE_PRIVATE).edit().putBoolean("offline_prompt_shown", true).apply();
+            new AlertDialog.Builder(this)
+                    .setTitle("Автономный режим Димы")
+                    .setMessage("Можно включить распознавание команд прямо на телефоне. После установки офлайн-языкового пакета команды работают без сервера и интернета, в том числе с выключенным экраном. Микрофон будет активен постоянно, это расходует батарею. Разрешить?")
+                    .setPositiveButton("Включить", (dialog, which) -> requestOfflineAssistant("ru"))
+                    .setNegativeButton("Позже", (dialog, which) -> { })
+                    .show();
         }
     }
 
