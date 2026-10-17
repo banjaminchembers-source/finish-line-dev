@@ -7,6 +7,9 @@ on:
       - "**"
     paths:
       - "android-wrapper/**"
+      - "src/server.ts"
+      - "src/routes/api/chat.ts"
+      - "src/routes/api/tts.ts"
       - ".github/workflows/build-android-apk.yml"
 
 permissions:
