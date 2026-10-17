@@ -14,7 +14,7 @@ type ConversationStore = { threads: Conversation[]; currentId: string };
 type Preferences = { autoSpeak: boolean; voiceRate: number; voice: 'male' | 'female'; language: 'be' | 'ru' | 'pl' | 'en' };
 type NativeCommand = { action: 'camera' } | { action: 'call'; name: string } | { action: 'music'; query: string } | { action: 'contacts'; name?: string } | { action: 'sms'; name: string; text: string };
 type PendingSms = { step: 'recipient' | 'text' | 'confirm'; recipient: string; text?: string };
-type AndroidBridge = { execute: (command: string) => void };
+type AndroidBridge = { execute: (command: string) => void; startOfflineAssistant: (language: string) => void; stopOfflineAssistant: () => void; isOfflineAssistantRunning: () => boolean };
 type NativeWindow = Window & { DimaAndroid?: AndroidBridge };
 type RecognitionResult = { 0: { transcript: string }; isFinal: boolean };
 type RecognitionEvent = { resultIndex: number; results: ArrayLike<RecognitionResult> };
@@ -156,6 +156,9 @@ export function BrainApp() {
   const startListeningRef = useRef<(() => void) | null>(null);
   const [speechError, setSpeechError] = useState('');
   const [pendingSms, setPendingSms] = useState<PendingSms | null>(null);
+  const [offlineModeEnabled, setOfflineModeEnabled] = useState(() => {
+    try { return (window as NativeWindow).DimaAndroid?.isOfflineAssistantRunning?.() ?? false; } catch { return false; }
+  });
   const [requestError, setRequestError] = useState('');
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<RecognitionInstance | null>(null);
@@ -514,6 +517,21 @@ export function BrainApp() {
   };
 
   const updatePreference = (next: Partial<Preferences>) => setPreferences((current) => ({ ...current, ...next }));
+  const toggleOfflineAssistant = () => {
+    const bridge = (window as NativeWindow).DimaAndroid;
+    if (!bridge) { setSpeechError('Офлайн-прослушивание доступно только в установленном APK Dima.'); return; }
+    if (offlineModeEnabled) {
+      bridge.stopOfflineAssistant();
+      setOfflineModeEnabled(false);
+    } else {
+      bridge.startOfflineAssistant(preferences.language);
+      setOfflineModeEnabled(true);
+    }
+  };
+  const selectLanguage = (language: Preferences['language']) => {
+    updatePreference({ language });
+    if (offlineModeEnabled) (window as NativeWindow).DimaAndroid?.startOfflineAssistant(language);
+  };
 
   return (
     <div className="app-shell">
@@ -663,8 +681,15 @@ export function BrainApp() {
           <div className="settings-row language-choice-row">
             <div><div className="setting-title">Язык общения</div><div className="setting-description">Язык распознавания речи и ответов Dima</div></div>
             <div className="voice-choice language-choice" role="group" aria-label="Язык общения">
-              {(['be', 'ru', 'pl', 'en'] as const).map((language) => <button key={language} type="button" className={preferences.language === language ? 'selected' : ''} aria-pressed={preferences.language === language} onClick={() => updatePreference({ language })} data-testid={`button-language-${language}`}>{LANGUAGE_SETTINGS[language].label}</button>)}
+              {(['be', 'ru', 'pl', 'en'] as const).map((language) => <button key={language} type="button" className={preferences.language === language ? 'selected' : ''} aria-pressed={preferences.language === language} onClick={() => selectLanguage(language)} data-testid={`button-language-${language}`}>{LANGUAGE_SETTINGS[language].label}</button>)}
             </div>
+          </div>
+          <div className="settings-row offline-mode-row">
+            <div>
+              <div className="setting-title">Автономное управление телефоном</div>
+              <div className="setting-description">Распознавание команд на устройстве, без сервера и интернета. Работает при заблокированном экране, пока режим включён и Android не остановил службу.</div>
+            </div>
+            <button type="button" className={`offline-toggle-button ${offlineModeEnabled ? 'active' : ''}`} aria-pressed={offlineModeEnabled} onClick={toggleOfflineAssistant} data-testid="button-offline-assistant">{offlineModeEnabled ? 'Выключить' : 'Включить офлайн'}</button>
           </div>
           <div className="settings-row voice-choice-row">
             <div><div className="setting-title">Голос помощника</div><div className="setting-description" data-testid="text-voice-name">Сейчас выбран: {preferences.voice === 'female' ? 'женский голос Bella' : 'мужской голос Adam'}</div></div>
