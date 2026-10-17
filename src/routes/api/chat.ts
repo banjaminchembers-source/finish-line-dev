@@ -54,18 +54,29 @@ export const Route = createFileRoute("/api/chat")({
               },
             }),
           });
-        } catch {
-          return Response.json({ error: "Не удалось подключиться к Google Gemini. Проверьте интернет и попробуйте ещё раз." }, { status: 502 });
+        } catch (error) {
+          // Keep the failure visible in server logs instead of hiding the actual cause.
+          console.error("[api/chat] Gemini network request failed:", error);
+          return Response.json({
+            error: "Сервер Dima запущен, но не смог связаться с Google Gemini. Проверьте серверные журналы.",
+            code: "GEMINI_NETWORK_ERROR",
+          }, { status: 502 });
         }
 
         if (!upstream.ok) {
           const s = upstream.status;
+          const upstreamBody = await upstream.json().catch(() => null) as {
+            error?: { message?: string; status?: string };
+          } | null;
+          // Log Google's diagnostic response without ever logging the API key.
+          console.error("[api/chat] Gemini returned HTTP", s, upstreamBody?.error?.status ?? "", upstreamBody?.error?.message ?? "");
           const error =
-            s === 429 ? "Лимит запросов Gemini исчерпан. Попробуйте позже или проверьте квоту API."
-            : s === 400 || s === 403 ? "Google Gemini отклонил запрос. Проверьте API-ключ, доступ к Gemini API и настройки проекта Google AI."
+            s === 429 ? "Лимит запросов Gemini исчерпан. Проверьте квоту API и попробуйте позже."
+            : s === 400 ? `Gemini отклонил формат запроса: ${upstreamBody?.error?.message ?? "HTTP 400"}`
+            : s === 403 ? `Gemini запретил запрос. Проверьте API-ключ, доступ к Gemini API и ограничения проекта Google AI. ${upstreamBody?.error?.message ?? ""}`.trim()
             : s === 401 ? "Google Gemini не принял API-ключ. Проверьте GEMINI_API_KEY."
-            : `Google Gemini вернул ошибку (HTTP ${s}).`;
-          return Response.json({ error }, { status: s === 429 ? 429 : 502 });
+            : `Google Gemini вернул ошибку (HTTP ${s}): ${upstreamBody?.error?.message ?? "подробности есть в серверном журнале"}`;
+          return Response.json({ error, code: "GEMINI_UPSTREAM_ERROR" }, { status: s === 429 ? 429 : 502 });
         }
 
         const data = await upstream.json().catch(() => null) as {
