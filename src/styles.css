@@ -386,3 +386,9 @@ body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
   .settings-row { gap: 10px; }
   .voice-choice button { padding: 0 8px; }
 }
+
+/* Offline command mode setting */
+.offline-mode-row { align-items: center; }
+.offline-toggle-button { flex: 0 0 auto; min-height: 40px; padding: 0 14px; border: 1px solid var(--border, rgba(255,255,255,.14)); border-radius: 12px; background: rgba(255,255,255,.06); color: var(--text, inherit); font-weight: 650; cursor: pointer; }
+.offline-toggle-button.active { border-color: rgba(89, 220, 168, .55); background: rgba(52, 190, 137, .14); }
+@media (max-width: 520px) { .offline-mode-row { align-items: flex-start; flex-direction: column; } .offline-toggle-button { align-self: stretch; } }
