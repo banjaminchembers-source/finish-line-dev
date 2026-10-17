@@ -158,7 +158,7 @@ public class OfflineAssistantService extends Service implements RecognitionListe
     private void execute(String text,String raw) {
         if(has(text,"камер","camera","aparat")) { openCamera(); return; }
         if(has(text,"позвони","набери","патэлефануй","call ","zadzwoń","zadzwon")) {
-            call(stripPrefix(raw,"позвони","набери","патэлефануй","call","zadzwoń do","zadzwon do","zadzwoń","zadzwon")); return;
+            call(stripPrefix(stripPrefix(raw,"позвони","набери","патэлефануй","call","zadzwoń do","zadzwon do","zadzwoń","zadzwon"),"абоненту","контакту","to","do")); return;
         }
         if(has(text,"отправь сообщение","отправь смс","напиши сообщение","send a message","send message","send sms","wyślij wiadomość","wyslij wiadomosc","адпраў паведамленне","напішы паведамленне")) {
             String name=stripPrefix(raw,"отправь сообщение абоненту","отправь сообщение контакту","отправь сообщение","отправь смс абоненту","отправь смс контакту","отправь смс","напиши сообщение абоненту","напиши сообщение контакту","напиши сообщение","send a message to","send message to","send sms to","send a message","send message","send sms","wyślij wiadomość do","wyslij wiadomosc do","wyślij wiadomość","wyslij wiadomosc","адпраў паведамленне","напішы паведамленне");
