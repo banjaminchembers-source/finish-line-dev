@@ -4,7 +4,7 @@ import {
   Plus, RotateCw, Send, Settings2, Sparkles, Square, Trash2, Volume2, X,
 } from 'lucide-react';
 import { useChatStatus, useSendChatMessage } from '@/lib/chat-client';
-import { cleanForSpeech, pickRussianVoice, planPhrases, voiceGender } from '@/lib/speech';
+import { cleanForSpeech } from '@/lib/speech';
 import { signInWithGoogle, signOut, useAuthUser, useCloudSync } from '@/lib/cloud-sync';
 
 type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
@@ -131,8 +131,6 @@ export function BrainApp() {
   const [speaking, setSpeaking] = useState(false);
   const [speechError, setSpeechError] = useState('');
   const [requestError, setRequestError] = useState('');
-  const [voiceAvailable, setVoiceAvailable] = useState(true);
-  const [preferredVoice, setPreferredVoice] = useState<SpeechSynthesisVoice | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<RecognitionInstance | null>(null);
   const recognitionBaseRef = useRef('');
@@ -172,14 +170,6 @@ export function BrainApp() {
   }, [messages, sendMessage.isPending]);
 
   useEffect(() => {
-    if (!('speechSynthesis' in window)) { setVoiceAvailable(false); return; }
-    const chooseVoice = () => setPreferredVoice(pickRussianVoice(window.speechSynthesis.getVoices()));
-    chooseVoice();
-    window.speechSynthesis.addEventListener('voiceschanged', chooseVoice);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', chooseVoice);
-  }, []);
-
-  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSettingsOpen(false);
@@ -192,32 +182,6 @@ export function BrainApp() {
 
   const speechRunRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const speakWithDevice = useCallback((text: string, run: number) => {
-    if (!('speechSynthesis' in window)) {
-      setSpeechError('Озвучивание не поддерживается этим браузером.');
-      setVoiceAvailable(false);
-      setSpeaking(false);
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const phrases = planPhrases(text, preferences.voiceRate);
-    if (!phrases.length) { setSpeaking(false); return; }
-    const sayNext = (i: number) => {
-      if (run !== speechRunRef.current) return;
-      const phrase = phrases[i];
-      if (!phrase) { setSpeaking(false); return; }
-      const utterance = new SpeechSynthesisUtterance(phrase.text);
-      utterance.lang = preferredVoice?.lang ?? 'ru-RU';
-      utterance.rate = phrase.rate;
-      utterance.pitch = phrase.pitch;
-      if (preferredVoice) utterance.voice = preferredVoice;
-      utterance.onend = () => { if (run === speechRunRef.current) setTimeout(() => sayNext(i + 1), phrase.pauseAfter); };
-      utterance.onerror = (e) => { if (run === speechRunRef.current && e.error !== 'interrupted' && e.error !== 'canceled') setSpeaking(false); };
-      window.speechSynthesis.speak(utterance);
-    };
-    sayNext(0);
-  }, [preferences.voiceRate, preferredVoice]);
-
   const speak = useCallback(async (text: string) => {
     const run = ++speechRunRef.current;
     audioRef.current?.pause();
@@ -242,11 +206,11 @@ export function BrainApp() {
       await audio.play();
     } catch (error) {
       if (run !== speechRunRef.current) return;
-      console.warn('George voice unavailable, using device voice', error);
-      setSpeechError('Голос George сейчас недоступен — говорю голосом устройства.');
-      speakWithDevice(text, run);
+      console.warn('Adam voice unavailable', error);
+      setSpeaking(false);
+      setSpeechError('Не удалось воспроизвести выбранный голос Adam. Проверьте подключение ElevenLabs. Системный голос не включён, чтобы Dima не менял голос сам.');
     }
-  }, [preferences.voiceRate, speakWithDevice]);
+  }, [preferences.voiceRate]);
 
   const stopSpeaking = () => {
     speechRunRef.current++;
@@ -525,18 +489,18 @@ export function BrainApp() {
             <button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Закрыть настройки" data-testid="button-close-settings"><X size={17} /></button>
           </div>
           <div className="settings-row">
-            <div><div className="setting-title">Автоматически озвучивать ответы</div><div className="setting-description">Новый ответ будет прочитан вслух голосом браузера.</div></div>
+            <div><div className="setting-title">Автоматически озвучивать ответы</div><div className="setting-description">Новый ответ будет озвучен выбранным голосом ElevenLabs Adam.</div></div>
             <button className="switch" role="switch" aria-checked={preferences.autoSpeak} onClick={() => updatePreference({ autoSpeak: !preferences.autoSpeak })} aria-label="Автоматически озвучивать ответы" data-testid="switch-auto-speak" />
           </div>
           <div className="settings-row">
-            <div><div className="setting-title">Скорость речи</div><div className="setting-description" data-testid="text-voice-name">Мужской голос: {preferredVoice ? preferredVoice.name : 'ищем русский голос в браузере'}</div></div>
+            <div><div className="setting-title">Скорость речи</div><div className="setting-description" data-testid="text-voice-name">Выбранный голос: ElevenLabs Adam</div></div>
             <div className="rate-control">
               <input type="range" min=".7" max="1.5" step=".1" value={preferences.voiceRate} onChange={(event) => updatePreference({ voiceRate: Number(event.target.value) })} aria-label="Скорость речи" data-testid="input-voice-rate" />
               <span className="rate-value" data-testid="text-voice-rate">{preferences.voiceRate.toFixed(1)}×</span>
             </div>
           </div>
-          {!voiceAvailable && <div className="local-note" style={{ textAlign: 'left' }} data-testid="status-voice-unsupported">Озвучивание не поддерживается этим браузером.</div>}
-          {voiceAvailable && preferredVoice && voiceGender(preferredVoice) !== 'male' && <div className="local-note" style={{ textAlign: 'left' }} data-testid="status-voice-not-male">Мужского русского голоса на этом устройстве нет — говорю тем, что есть. Добавьте мужской голос в системных настройках синтеза речи (например, «Microsoft Dmitry» в Windows или мужской голосовой пакет в Android), и я возьму его сам.</div>}
+          
+          
           <div className="status-card" data-testid="card-ai-status">
             <div className="status-card-top"><span className={`status-dot ${statusQuery.isLoading ? 'waiting' : status?.configured ? 'ready' : ''}`} />
               <span>{statusQuery.isLoading ? 'Проверяем подключение' : statusQuery.isError ? 'Сервер недоступен' : status?.configured ? 'ИИ готов к работе' : 'ИИ не настроен'}</span>
