@@ -31,6 +31,7 @@ public class OfflineAssistantService extends Service implements RecognitionListe
     private SpeechRecognizer recognizer;
     private TextToSpeech tts;
     private MediaPlayer player;
+    private PowerManager.WakeLock wakeLock;
     private String localeTag = "ru-RU", smsRecipient, smsText;
     private boolean awaitingCommand, speaking;
 
@@ -64,8 +65,24 @@ public class OfflineAssistantService extends Service implements RecognitionListe
         }
         startForeground(NOTIFICATION_ID, notification("Офлайн-режим активен. Скажите «Дима» и команду."));
         running = true;
+        acquireWakeLock();
         listen();
         return START_STICKY;
+    }
+
+    private void acquireWakeLock() {
+        try {
+            PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
+            if (power != null && (wakeLock == null || !wakeLock.isHeld())) {
+                wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Dima:OfflineVoice");
+                wakeLock.setReferenceCounted(false);
+                wakeLock.acquire();
+            }
+        } catch (Exception error) { Log.w("DimaOffline", "Wake lock unavailable", error); }
+    }
+    private void releaseWakeLock() {
+        try { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); } catch (Exception ignored) { }
+        wakeLock = null;
     }
 
     private String localeFor(String value) {
@@ -272,8 +289,9 @@ public class OfflineAssistantService extends Service implements RecognitionListe
         if(recognizer!=null){recognizer.cancel();recognizer.destroy();recognizer=null;}
         if(player!=null){player.release();player=null;}
         if(tts!=null){tts.stop();tts.shutdown();tts=null;}
+        releaseWakeLock();
         stopForeground(true);stopSelf();
     }
-    @Override public void onDestroy(){running=false;handler.removeCallbacksAndMessages(null);if(recognizer!=null){recognizer.cancel();recognizer.destroy();}if(player!=null)player.release();if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
+    @Override public void onDestroy(){running=false;handler.removeCallbacksAndMessages(null);if(recognizer!=null){recognizer.cancel();recognizer.destroy();}if(player!=null)player.release();if(tts!=null){tts.stop();tts.shutdown();}releaseWakeLock();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }
