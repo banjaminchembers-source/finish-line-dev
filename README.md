@@ -19,7 +19,7 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 The chat endpoint uses the official OpenAI Responses API with web search. Configure these secrets in the deployment environment (for the published Lovable app, use the project's environment/secrets settings):
 
 - `OPENAI_API_KEY` — required. Create/manage it in your OpenAI API account. Never put this key in client-side code, commit it to Git, or share it in chat.
-- `OPENAI_MODEL` — optional; defaults to `gpt-6-astra`.
+- `OPENAI_MODEL` — optional; defaults to `gpt-5-mini`.
 
 After saving the server secret, redeploy/restart the app and open Settings in Dima. The connection status should show `OpenAI API` when the server can read the key. ChatGPT subscriptions and OpenAI API billing are separate; API calls are billed to the API account.
 
