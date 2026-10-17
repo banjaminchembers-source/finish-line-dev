@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, AudioLines, Bot, Check, CircleHelp, Clock3, History, Mic, MicOff,
-  Plus, RotateCw, Send, Settings2, Sparkles, Square, Trash2, Volume2, X,
+  Plus, RotateCw, Send, Settings2, Square, Trash2, Volume2, X,
 } from 'lucide-react';
 import { useChatStatus, useSendChatMessage } from '@/lib/chat-client';
 import { cleanForSpeech } from '@/lib/speech';
@@ -31,11 +31,7 @@ const THREADS_KEY = 'brain.conversations.v1';
 const CURRENT_THREAD_KEY = 'brain.current-conversation.v1';
 const PREFS_KEY = 'brain.preferences.v1';
 const defaultPrefs: Preferences = { autoSpeak: false, voiceRate: 1, voice: 'male' };
-const suggestions = [
-  { title: 'Собери мысли в план', detail: 'Преврати задачу в понятные шаги', prompt: 'Помоги составить план действий для моей задачи.' },
-  { title: 'Объясни простыми словами', detail: 'Разберись в сложной теме без лишнего', prompt: 'Объясни простыми словами, как работает машинное обучение.' },
-  { title: 'Напиши лучше', detail: 'Сформулируй сообщение или письмо', prompt: 'Помоги написать короткое и вежливое сообщение.' },
-];
+
 
 function deriveTitle(messages: ChatEntry[]): string {
   const firstMessage = messages.find((message) => message.role === 'user')?.content.trim();
