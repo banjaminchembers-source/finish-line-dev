@@ -20,8 +20,8 @@ const Body = z.object({
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
-      GET: async () => {
-        const configured = Boolean(process.env["GEMINI_API_KEY"]);
+      GET: async ({ context }) => {
+        const configured = Boolean(getGeminiApiKey(context));
         return Response.json({
           configured,
           provider: configured ? "Google Gemini" : null,
