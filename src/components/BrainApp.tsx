@@ -11,7 +11,11 @@ type ChatRole = 'user' | 'assistant' | 'notice' | 'error';
 type ChatEntry = { id: string; role: ChatRole; content: string; time: number; localOnly?: boolean };
 type Conversation = { id: string; title: string; messages: ChatEntry[]; updatedAt: number };
 type ConversationStore = { threads: Conversation[]; currentId: string };
-type Preferences = { autoSpeak: boolean; voiceRate: number; voice: 'male' | 'female' };
+type Preferences = { autoSpeak: boolean; voiceRate: number; voice: 'male' | 'female'; language: 'be' | 'ru' | 'pl' | 'en' };
+type NativeCommand = { action: 'camera' } | { action: 'call'; name: string } | { action: 'music'; query: string } | { action: 'contacts'; name?: string } | { action: 'sms'; name: string; text: string };
+type PendingSms = { step: 'recipient' | 'text' | 'confirm'; recipient: string; text?: string };
+type AndroidBridge = { execute: (command: string) => void };
+type NativeWindow = Window & { DimaAndroid?: AndroidBridge };
 type RecognitionResult = { 0: { transcript: string }; isFinal: boolean };
 type RecognitionEvent = { resultIndex: number; results: ArrayLike<RecognitionResult> };
 type RecognitionInstance = {
@@ -30,7 +34,35 @@ const LEGACY_THREAD_KEY = 'brain.current-thread.v1';
 const THREADS_KEY = 'brain.conversations.v1';
 const CURRENT_THREAD_KEY = 'brain.current-conversation.v1';
 const PREFS_KEY = 'brain.preferences.v1';
-const defaultPrefs: Preferences = { autoSpeak: false, voiceRate: 1, voice: 'male' };
+const defaultPrefs: Preferences = { autoSpeak: false, voiceRate: 1, voice: 'male', language: 'ru' };
+const LANGUAGE_SETTINGS = {
+  be: { label: 'Беларуская', recognition: 'be-BY', name: 'белорусском' },
+  ru: { label: 'Русский', recognition: 'ru-RU', name: 'русском' },
+  pl: { label: 'Polski', recognition: 'pl-PL', name: 'польском' },
+  en: { label: 'English', recognition: 'en-US', name: 'английском' },
+} as const;
+function parseDeviceCommand(text: string): NativeCommand | null {
+  const value = text.trim();
+  const normalized = value.toLocaleLowerCase().replace(/[ё]/g, 'е');
+  if (/\b(открой|включи|запусти|open|launch|włącz|uruchom|адкрый|уключы)\b.*\b(камеру|камера|camera|aparat|камеру)\b/.test(normalized)) return { action: 'camera' };
+  const call = normalized.match(/(?:позвони|набери|call|zadzwoń do|zadzwon do|патэлефануй)\s+(?:абоненту\s+|контакту\s+|to\s+|do\s+)?(.+)/);
+  if (call?.[1]) return { action: 'call', name: value.slice(value.toLocaleLowerCase().indexOf(call[1])).trim() };
+  const music = normalized.match(/(?:включи|найди|запусти|play|find|odtwórz|włącz|znajdź|уключы|прайграй)\s+(?:песню\s+|музыку\s+|song\s+|music\s+|piosenkę\s+|muzykę\s+)?(.+)/);
+  if (music?.[1] && /музык|песн|трек|song|music|piosenk|utwor|мелоды|песню/.test(normalized)) return { action: 'music', query: value.slice(value.toLocaleLowerCase().indexOf(music[1])).trim() };
+  if (/^(открой|покажи|найди|open|show|find|otwórz|pokaż|znajdź|пакажы|адкрый)\s+(контакты|контакт|contacts|contact|kontakty|kontakty|кантакты)/.test(normalized)) {
+    const name = value.replace(/^(открой|покажи|найди|open|show|find|otwórz|pokaż|znajdź|пакажы|адкрый)\s+(контакты|контакт|contacts|contact|kontakty|кантакты)\s*/i, '').trim();
+    return { action: 'contacts', ...(name ? { name } : {}) };
+  }
+  const sms = normalized.match(/(?:отправь|напиши|send|text|wyślij|wyslij|napisz|адпраў|напішы)\s+(?:сообщение|смс|message|sms|wiadomość|wiadomosc|паведамленне)\s+(?:абоненту\s+|контакту\s+|to\s+|do\s+)?(.+)/);
+  if (sms?.[1]) return { action: 'sms', name: value.slice(value.toLocaleLowerCase().indexOf(sms[1])).trim(), text: '' };
+  return null;
+}
+function callAndroid(command: NativeCommand): boolean {
+  const bridge = (window as NativeWindow).DimaAndroid;
+  if (!bridge?.execute) return false;
+  bridge.execute(JSON.stringify(command));
+  return true;
+}
 
 
 function deriveTitle(messages: ChatEntry[]): string {
@@ -96,6 +128,7 @@ function readPreferences(): Preferences {
       autoSpeak: typeof value.autoSpeak === 'boolean' ? value.autoSpeak : defaultPrefs.autoSpeak,
       voiceRate: typeof value.voiceRate === 'number' ? Math.min(1.5, Math.max(.7, value.voiceRate)) : defaultPrefs.voiceRate,
       voice: value.voice === 'female' ? 'female' : 'male',
+      language: value.language === 'be' || value.language === 'pl' || value.language === 'en' ? value.language : 'ru',
     };
   } catch { return defaultPrefs; }
 }
@@ -132,6 +165,7 @@ export function BrainApp() {
   const speakingRef = useRef(false);
   const startListeningRef = useRef<(() => void) | null>(null);
   const [speechError, setSpeechError] = useState('');
+  const [pendingSms, setPendingSms] = useState<PendingSms | null>(null);
   const [requestError, setRequestError] = useState('');
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<RecognitionInstance | null>(null);
@@ -256,7 +290,7 @@ export function BrainApp() {
     }
     try {
       const recognition = new Recognition();
-      recognition.lang = 'ru-RU';
+      recognition.lang = LANGUAGE_SETTINGS[preferences.language].recognition;
       recognition.interimResults = true;
       recognition.continuous = false;
       recognition.onresult = (event) => {
@@ -338,7 +372,67 @@ export function BrainApp() {
     const targetThreadId = currentThreadId;
     setDraft('');
     setRequestError('');
-    const isUnsupported = isDeviceCommand(content);
+
+    const normalizedCommand = content.toLocaleLowerCase().trim().replace(/[.!?]+$/g, '');
+    if (pendingSms) {
+      if (pendingSms.step === 'recipient') {
+        setPendingSms({ step: 'text', recipient: content });
+        const prompt = `Хорошо. Продиктуйте текст сообщения для ${content}. Я повторю его перед подтверждением.`;
+        updateMessages(targetThreadId, (current) => [...current, makeEntry('assistant', prompt)]);
+        if (voiceModeRef.current) void speak(prompt);
+        return;
+      }
+      if (pendingSms.step === 'text') {
+        setPendingSms({ ...pendingSms, step: 'confirm', text: content });
+        const prompt = `Текст сообщения: «${content}». Получатель: ${pendingSms.recipient}. Чтобы продолжить, скажите «Да, отправить». Для отмены скажите «Отмена».`;
+        updateMessages(targetThreadId, (current) => [...current, makeEntry('assistant', prompt)]);
+        void speak(prompt);
+        return;
+      }
+      if (/^(да|да отправить|отправляй|подтверждаю|yes|yes send|send it|tak|wyślij|wyslij|так|адпраўляй)(\s|$)/i.test(normalizedCommand)) {
+        const command: NativeCommand = { action: 'sms', name: pendingSms.recipient, text: pendingSms.text ?? '' };
+        setPendingSms(null);
+        if (callAndroid(command)) {
+          const note = 'Открываю приложение SMS с указанным получателем и проверенным текстом. Проверьте сообщение и нажмите системную кнопку отправки.';
+          updateMessages(targetThreadId, (current) => [...current, makeEntry('notice', note)]);
+          if (voiceModeRef.current) void speak(note);
+        } else {
+          const note = 'Эта команда работает в установленном Android-приложении Dima. В браузере управлять SMS нельзя.';
+          updateMessages(targetThreadId, (current) => [...current, makeEntry('notice', note)]);
+          if (voiceModeRef.current) void speak(note);
+        }
+        return;
+      }
+      if (/^(отмена|отмени|cancel|no|не отправляй|не надо|anuluj|nie|скасуй)(\s|$)/i.test(normalizedCommand)) {
+        setPendingSms(null);
+        const note = 'Отменил отправку. Сообщение не открывалось и не отправлялось.';
+        updateMessages(targetThreadId, (current) => [...current, makeEntry('assistant', note)]);
+        if (voiceModeRef.current) void speak(note);
+        return;
+      }
+      const note = 'Не понял подтверждение. Скажите «Да, отправить» или «Отмена».';
+      updateMessages(targetThreadId, (current) => [...current, makeEntry('assistant', note)]);
+      if (voiceModeRef.current) void speak(note);
+      return;
+    }
+
+    const nativeCommand = parseDeviceCommand(content);
+    if (nativeCommand?.action === 'sms') {
+      setPendingSms({ step: 'text', recipient: nativeCommand.name });
+      const prompt = `Понял, сообщение для ${nativeCommand.name}. Продиктуйте текст. Я повторю его и попрошу подтверждение перед открытием SMS.`;
+      updateMessages(targetThreadId, (current) => [...current, makeEntry('assistant', prompt)]);
+      if (voiceModeRef.current) void speak(prompt);
+      return;
+    }
+    if (nativeCommand) {
+      const ok = callAndroid(nativeCommand);
+      const commandLabels: Record<NativeCommand['action'], string> = { camera: 'Открываю камеру.', call: `Открываю набор номера для контакта ${nativeCommand.action === 'call' ? nativeCommand.name : ''}.`, music: `Ищу аудио «${nativeCommand.action === 'music' ? nativeCommand.query : ''}» на устройстве.`, contacts: 'Открываю контакты.' , sms: 'Открываю SMS.' };
+      const note = ok ? commandLabels[nativeCommand.action] : 'Эта команда требует установленного Android-приложения Dima. Откройте именно APK, а не веб-версию в браузере.';
+      updateMessages(targetThreadId, (current) => [...current, makeEntry(ok ? 'notice' : 'error', note)]);
+      if (voiceModeRef.current) void speak(note);
+      return;
+    }
+    const isUnsupported = false;
     const userEntry = { ...makeEntry('user', content), localOnly: isUnsupported };
     updateMessages(targetThreadId, (current) => [...current, userEntry]);
 
@@ -365,7 +459,7 @@ export function BrainApp() {
 
     const history = [...messages.filter((entry) => !entry.localOnly && (entry.role === 'user' || entry.role === 'assistant')).map(({ role, content: itemContent }) => ({ role: role as 'user' | 'assistant', content: itemContent })), { role: 'user' as const, content }];
     try {
-      const response = await sendMessage.mutateAsync({ data: { messages: history.slice(-39) } });
+      const response = await sendMessage.mutateAsync({ data: { messages: history.slice(-39), language: preferences.language } });
       const assistantText = response?.message?.content;
       if (typeof assistantText !== 'string' || !assistantText.trim()) {
         setRequestError('Сервис не вернул ответ. Попробуйте отправить сообщение ещё раз.');
@@ -510,7 +604,7 @@ export function BrainApp() {
                     const retryHistory = messages
                       .filter((entry) => !entry.localOnly && (entry.role === 'user' || entry.role === 'assistant'))
                       .map(({ role, content: itemContent }) => ({ role: role as 'user' | 'assistant', content: itemContent }));
-                    void sendMessage.mutateAsync({ data: { messages: retryHistory.slice(-40) } }).then((response) => {
+                    void sendMessage.mutateAsync({ data: { messages: retryHistory.slice(-40), language: preferences.language } }).then((response) => {
                       const answer = response?.message?.content;
                       if (!answer?.trim()) { setRequestError('Сервис не вернул ответ. Попробуйте отправить сообщение ещё раз.'); return; }
                       updateMessages(currentThreadId, (current) => [...current, makeEntry('assistant', answer)]);
@@ -574,6 +668,12 @@ export function BrainApp() {
           <div className="settings-row">
             <div><div className="setting-title">Автоматически озвучивать ответы</div><div className="setting-description">Новый ответ будет озвучен выбранным голосом ElevenLabs.</div></div>
             <button className="switch" role="switch" aria-checked={preferences.autoSpeak} onClick={() => updatePreference({ autoSpeak: !preferences.autoSpeak })} aria-label="Автоматически озвучивать ответы" data-testid="switch-auto-speak" />
+          </div>
+          <div className="settings-row language-choice-row">
+            <div><div className="setting-title">Язык общения</div><div className="setting-description">Язык распознавания речи и ответов Dima</div></div>
+            <div className="voice-choice language-choice" role="group" aria-label="Язык общения">
+              {(['be', 'ru', 'pl', 'en'] as const).map((language) => <button key={language} type="button" className={preferences.language === language ? 'selected' : ''} aria-pressed={preferences.language === language} onClick={() => updatePreference({ language })} data-testid={`button-language-${language}`}>{LANGUAGE_SETTINGS[language].label}</button>)}
+            </div>
           </div>
           <div className="settings-row voice-choice-row">
             <div><div className="setting-title">Голос помощника</div><div className="setting-description" data-testid="text-voice-name">Сейчас выбран: {preferences.voice === 'female' ? 'женский голос Bella' : 'мужской голос Adam'}</div></div>
