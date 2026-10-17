@@ -44,7 +44,7 @@ const LANGUAGE_SETTINGS = {
 function parseDeviceCommand(text: string): NativeCommand | null {
   const value = text.trim();
   const normalized = value.toLocaleLowerCase().replace(/[ё]/g, 'е');
-  if (/\b(открой|включи|запусти|open|launch|włącz|uruchom|адкрый|уключы)\b.*\b(камеру|камера|camera|aparat|камеру)\b/.test(normalized)) return { action: 'camera' };
+  if (/^(открой|включи|запусти|open|launch|włącz|uruchom|адкрый|уключы).*?(камеру|камера|camera|aparat)/.test(normalized)) return { action: 'camera' };
   const call = normalized.match(/(?:позвони|набери|call|zadzwoń do|zadzwon do|патэлефануй)\s+(?:абоненту\s+|контакту\s+|to\s+|do\s+)?(.+)/);
   if (call?.[1]) return { action: 'call', name: value.slice(value.toLocaleLowerCase().indexOf(call[1])).trim() };
   const music = normalized.match(/(?:включи|найди|запусти|play|find|odtwórz|włącz|znajdź|уключы|прайграй)\s+(?:песню\s+|музыку\s+|song\s+|music\s+|piosenkę\s+|muzykę\s+)?(.+)/);
