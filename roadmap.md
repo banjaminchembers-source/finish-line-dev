@@ -1,3 +1,3 @@
 - [x] Voice ask / listen buttons on home screen
 - [x] Google sign-in + conversation history saved in account
-- [ ] Fix voice errors and use the voice the user calls «Дима» — awaiting clarification of the intended voice.
+- [ ] Fix voice errors and use the specific ElevenLabs voice «Дима» — blocked: voice listing returns HTTP 401; the intended voice link or ID is needed.
