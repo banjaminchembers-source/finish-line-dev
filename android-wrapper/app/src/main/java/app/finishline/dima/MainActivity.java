@@ -7,6 +7,9 @@ import android.app.AlertDialog;
 import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
@@ -116,7 +119,7 @@ public class MainActivity extends Activity {
         boolean offlineEnabled = getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("enabled", false);
         if (offlineEnabled && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             startOfflineService(getSharedPreferences("dima_offline", MODE_PRIVATE).getString("language", "ru"));
-        } else if (!getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("offline_prompt_shown", false)) {
+        } else if (!getSharedPreferences("dima_offline", MODE_PRIVATE).getBoolean("offline_prompt_shown", false) || !hasInternetConnection()) {
             getSharedPreferences("dima_offline", MODE_PRIVATE).edit().putBoolean("offline_prompt_shown", true).apply();
             new AlertDialog.Builder(this)
                     .setTitle("Автономный режим Димы")
@@ -125,6 +128,15 @@ public class MainActivity extends Activity {
                     .setNegativeButton("Позже", (dialog, which) -> { })
                     .show();
         }
+    }
+
+    private boolean hasInternetConnection() {
+        try {
+            ConnectivityManager manager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            Network active = manager == null ? null : manager.getActiveNetwork();
+            NetworkCapabilities capabilities = manager == null || active == null ? null : manager.getNetworkCapabilities(active);
+            return capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        } catch (Exception ignored) { return false; }
     }
 
     private void requestOfflineAssistant(String language) {
